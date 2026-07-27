@@ -1,6 +1,7 @@
-const logger = require("../configs/logger")
+import { NextFunction, Request, Response } from "express";
+import logger from "../configs/logger";
 
-async function errorHandler(err, req, res, next) {
+async function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
 
     const status = err.status || 500
 
@@ -36,10 +37,9 @@ async function errorHandler(err, req, res, next) {
         errors: err.errors,
         code: err.code,
         details: err.details,
-
         requestId: req.requestId
     })
 
 }
 
-module.exports = errorHandler
+export default errorHandler

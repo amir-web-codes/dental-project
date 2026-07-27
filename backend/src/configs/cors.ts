@@ -1,13 +1,14 @@
+import { CorsOptions } from "cors"
+
 const allowedOrigins = [
     "http://localhost:5173",
     "https://yourdomain.com",
     "https://www.yourdomain.com"
 ]
 
-const corsOptions = {
+const corsOptions: CorsOptions = {
     origin(origin, callback) {
 
-        // Postman یا curl
         if (!origin) {
             return callback(null, true)
         }
@@ -40,4 +41,4 @@ const corsOptions = {
     optionsSuccessStatus: 204
 }
 
-module.exports = corsOptions
+export default corsOptions
