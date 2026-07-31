@@ -1,4 +1,5 @@
 import express from "express"
+import env from "./env"
 import type { Express } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
@@ -16,7 +17,7 @@ export default function (app: Express) {
     app.use(cookieParser());
     app.use(cors(corsOptions));
     app.use(helmet());
-    if (process.env.NODE_ENV === "development") {
+    if (env("NODE_ENV") === "development") {
         app.use(morgan("dev"));
     }
     app.use(globalRateLimiter);

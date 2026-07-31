@@ -8,8 +8,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  DENTIST
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  DELETED
+}
+
 model User {
   id String @id @default(cuid())
   phone String @unique
+  fullName String
+  role Role @default(USER)
+  status UserStatus @default(ACTIVE)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@map("users")
 }
