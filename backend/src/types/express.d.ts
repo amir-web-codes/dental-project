@@ -1,4 +1,4 @@
-import JWTPayload from "./user"
+import JWTPayload from "./auth"
 
 declare global {
     namespace Express {

@@ -6,7 +6,7 @@ import corsOptions from "./cors"
 import globalRateLimiter from "./rateLimiter"
 import helmet from "helmet"
 import morgan from "morgan"
-import requestId from "../utils/requestId"
+import requestId from "../middlewares/requestId"
 import path from "path"
 
 export default function (app: Express) {
