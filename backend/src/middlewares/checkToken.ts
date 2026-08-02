@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express"
-import env from "../configs/env"
+import env from "../utils/env"
 import jwt from "jsonwebtoken"
+import AppError from "@/errors/AppError"
 
 
 export default function checkToken(req: Request, res: Response, next: NextFunction) {
@@ -8,9 +9,7 @@ export default function checkToken(req: Request, res: Response, next: NextFuncti
     const token = header && header.split(" ")[1]
 
     if (!token) {
-        const err = new Error("token not provided")
-        err.status = 401
-        throw err
+        throw new AppError("token not provided", 401)
     }
 
     try {
@@ -21,8 +20,6 @@ export default function checkToken(req: Request, res: Response, next: NextFuncti
         next()
 
     } catch (err) {
-        err = new Error("invalid or expired token")
-        err.status = 403
-        throw err
+        throw new AppError("invalid or expired token", 403)
     }
 }
