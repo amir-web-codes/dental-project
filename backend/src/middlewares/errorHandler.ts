@@ -1,9 +1,24 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../configs/logger";
+import AppError from "../errors/AppError";
 
-async function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
+async function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction) {
 
-    const status = err.status || 500
+    let status;
+    let message;
+    let stack
+    let errors;
+    if (err instanceof AppError) {
+        status = err.status
+        message = err.message
+        stack = err.stack
+        errors = err.errors
+    } else {
+        status = 500
+        message = "internal server error"
+        stack = undefined
+        errors = undefined
+    }
 
     const context = {
         requestId: req.requestId,
@@ -12,31 +27,24 @@ async function errorHandler(err: Error, req: Request, res: Response, next: NextF
         ip: req.ip,
         userId: req.user?.id,
         status,
-        message: err.message,
-        stack: err.stack,
-        errors: err.errors,
-        code: err.code,
-        details: err.details
+        message,
+        stack,
+        errors
     }
 
     if (status >= 500) {
 
-        console.error(err.stack)
-
+        console.error(stack)
         logger.error(context)
-        err.message = "internal server error"
+
     } else {
-
         logger.warn(context)
-
     }
 
     res.status(status).json({
         success: false,
-        message: err.message,
-        errors: err.errors,
-        code: err.code,
-        details: err.details,
+        message: message,
+        errors,
         requestId: req.requestId
     })
 

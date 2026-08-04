@@ -1,4 +1,4 @@
-import type { Request, Response } from "express"
+import type { NextFunction, Request, Response } from "express"
 import * as userService from "./user.service"
 import type { UserProfileDto } from "./user.dto"
 
@@ -14,6 +14,17 @@ async function getUserProfile(req: Request, res: Response) {
     return data
 }
 
+async function updateUserProfile(req: Request, res: Response, next: NextFunction) {
+    // const data = await userService(req.body)
+
+    res.status(201).json({
+        success: true,
+        message: "user updated successfully",
+        // data
+    })
+}
+
 export {
-    getUserProfile
+    getUserProfile,
+    updateUserProfile
 }

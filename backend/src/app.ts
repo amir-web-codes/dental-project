@@ -1,17 +1,26 @@
 import express from "express"
 
 import loadMiddlewares from "./configs/middlewares"
-// import errorHandler from "./middlewares/errorHandler"
 
 const app = express();
 
 loadMiddlewares(app);
-// app.use(errorHandler);
 
 import authRouter from "./modules/auth/auth.router"
 import userRouter from "./modules/user/user.router"
 
 app.use("/auth", authRouter)
 app.use("/users", userRouter)
+
+import type { Request, Response, NextFunction } from "express";
+import AppError from "./errors/AppError";
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+    throw new AppError("route not found", 404)
+})
+
+
+import errorHandler from "./middlewares/errorHandler"
+app.use(errorHandler);
 
 export default app;

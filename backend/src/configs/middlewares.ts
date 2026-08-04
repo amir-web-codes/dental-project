@@ -1,5 +1,5 @@
 import express from "express"
-import env from "./env"
+import env from "../utils/env"
 import type { Express } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"

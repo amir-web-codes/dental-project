@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express"
 import env from "../utils/env"
 import jwt from "jsonwebtoken"
-import AppError from "@/errors/AppError"
+import AppError from "../errors/AppError"
 
 
 export default function checkToken(req: Request, res: Response, next: NextFunction) {

@@ -6,5 +6,6 @@ import * as userController from "./user.controller"
 
 router.route("/me")
     .get(checkToken, userController.getUserProfile)
+    .patch(checkToken, userController.updateUserProfile)
 
 export default router

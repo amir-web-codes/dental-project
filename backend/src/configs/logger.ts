@@ -1,4 +1,4 @@
-import env from "./env"
+import env from "../utils/env"
 const { createLogger, format, transports } = require("winston")
 
 
@@ -30,4 +30,4 @@ const logger = createLogger({
     ]
 })
 
-module.exports = logger
+export default logger

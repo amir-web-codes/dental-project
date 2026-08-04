@@ -1,18 +1,12 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import env from "./configs/env"
+import env from "./utils/env"
 import app from "./app"
-
-// const connectMongo = require("./configs/database");
-// const connectRedis = require("./configs/redis");
 
 const PORT = env("PORT") || 3000;
 async function bootstrap() {
     try {
-
-        // await connectMongo();
-        // await connectRedis();
 
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
