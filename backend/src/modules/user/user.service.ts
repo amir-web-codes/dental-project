@@ -1,9 +1,9 @@
 import prisma from "../../configs/prisma"
 import AppError from "../../errors/AppError"
 import type { Prisma } from "../../generated/prisma"
-import type { UserProfileDto } from "./user.dto"
+import type * as userDto from "./user.dto"
 
-async function getUserById(id: string, getDeleted: boolean = false, isAdmin: boolean = false): Promise<UserProfileDto> {
+async function getUserById(id: string, getDeleted: boolean = false, isAdmin: boolean = false): Promise<userDto.UserProfileDto> {
     const query: Prisma.UserWhereInput = {
         id,
         status: {
@@ -30,8 +30,19 @@ async function getUserById(id: string, getDeleted: boolean = false, isAdmin: boo
     return data
 }
 
-async function updateUserById(id: string) {
+async function updateUserById(body: userDto.UserUpdateDto, id: string): Promise<userDto.UserProfileDto> {
+    const query: Prisma.UserUpdateInput = {};
 
+    if (body.fullName !== undefined) query.fullName = body.fullName
+
+    const data = await prisma.user.update({
+        where: {
+            id
+        },
+        data: query
+    })
+
+    return data
 }
 
 export {

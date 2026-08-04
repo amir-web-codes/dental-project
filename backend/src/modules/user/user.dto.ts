@@ -8,6 +8,11 @@ interface UserProfileDto {
     status: UserStatus
 }
 
+interface UserUpdateDto {
+    fullName?: string,
+}
+
 export {
-    UserProfileDto
+    UserProfileDto,
+    UserUpdateDto
 }

@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express"
+import type { Request, Response } from "express"
 import * as userService from "./user.service"
 import type { UserProfileDto } from "./user.dto"
 
@@ -7,20 +7,18 @@ async function getUserProfile(req: Request, res: Response) {
 
     res.json({
         success: true,
-        message: "user fetched successfully",
+        message: "User fetched successfully",
         data
     })
-
-    return data
 }
 
-async function updateUserProfile(req: Request, res: Response, next: NextFunction) {
-    // const data = await userService(req.body)
+async function updateUserProfile(req: Request, res: Response) {
+    const data = await userService.updateUserById(req.body, req.user.id)
 
-    res.status(201).json({
+    res.json({
         success: true,
-        message: "user updated successfully",
-        // data
+        message: "User updated successfully",
+        data
     })
 }
 
