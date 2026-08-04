@@ -6,7 +6,8 @@ type EnvType =
     "POSTGRES_USER" |
     "POSTGRES_PASSWORD" |
     "POSTGRES_DB" |
-    "DATABASE_URL"
+    "DATABASE_URL" |
+    "REDIS_URL"
 
 export default function getEnv(env: EnvType): string {
     const value = process.env[env];
