@@ -1,3 +1,4 @@
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { z } from "zod";
 
 function normalizePhone(phone: string) {
@@ -24,9 +25,11 @@ function normalizePhone(phone: string) {
 const sendOtpSchema = z.object({
     phone: z
         .string()
+        .trim()
+        .min(1, "Phone number is required")
         .transform(normalizePhone)
         .refine(
-            (phone) => /^\+989\d{9}$/.test(phone),
+            phone => isValidPhoneNumber(phone, "IR"),
             {
                 message: "Invalid phone number"
             }
