@@ -21,7 +21,6 @@ function normalizePhone(phone: string) {
     return value;
 }
 
-
 const sendOtpSchema = z.object({
     phone: z
         .string()
@@ -36,6 +35,12 @@ const sendOtpSchema = z.object({
         )
 });
 
+const verifyOtpSchema = z.object({
+    phone: z.string().trim().min(1, "Phone number is required"),
+    otp: z.string().trim().regex(/^\d{6}$/, "OTP must be 6 digits")
+})
+
 export {
-    sendOtpSchema
+    sendOtpSchema,
+    verifyOtpSchema
 }

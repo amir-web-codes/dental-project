@@ -1,67 +1,79 @@
+import type * as dto from "../user/user.dto"
+import type { User } from "@/generated/prisma"
 import crypto from "crypto"
-import bcrypt from "bcrypt"
 import prisma from "../../configs/prisma"
 import AppError from "../../errors/AppError"
+import jwt from "jsonwebtoken"
+import bcrypt from "bcrypt"
+import env from "../../utils/env"
 import { redisClient } from "../../configs/redis"
 
-const MAX_SEND_TRIES = 5
+const OTP_EXPIRE_TIME = 120;
+const OTP_SEND_LIMIT = 5;
 const MAX_CHECK_TRIES = 10
+const OTP_LIMIT_WINDOW = 900; // 15 minutes
+
 
 function hashOtp(otp: string): string {
-    return crypto
-        .createHash("sha256")
-        .update(otp)
-        .digest("hex");
+    return crypto.createHash("sha256").update(otp).digest("hex");
 }
 
+
 async function sendOtp(phone: string) {
+    const otpKey = `otp:${phone}`;
+    const countKey = `otp:count:${phone}`;
 
-    const otp = crypto.randomInt(100000, 1000000)
-        .toString()
+    const currentCount = Number(await redisClient.get(countKey));
 
-    const hashedOtp = hashOtp(otp)
-
-    const otpKey = `otp:${phone}`
-
-    const exists = await redisClient.exists(otpKey)
-
-    if (exists) {
-        throw new AppError(
-            "wait before requesting again",
-            429
-        )
+    if (currentCount >= OTP_SEND_LIMIT) {
+        throw new AppError("too many OTP requests, try again later", 429);
     }
 
-    await redisClient.set(
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    const hashedOtp = hashOtp(otp);
+
+    const result = await redisClient.set(
         otpKey,
         hashedOtp,
         {
-            EX: 120
+            EX: OTP_EXPIRE_TIME,
+            NX: true
         }
-    )
+    );
 
-    const countKey = `otp:count:${phone}`
-
-    const count = await redisClient.incr(countKey)
+    if (result === null) {
+        throw new AppError(
+            "please wait before requesting another OTP",
+            429
+        );
+    }
+    const count = await redisClient.incr(countKey);
 
     if (count === 1) {
         await redisClient.expire(
             countKey,
-            1800
-        )
+            OTP_LIMIT_WINDOW
+        );
     }
 
-
-    console.log(otp)
+    // 5. Send SMS here
+    // await smsProvider.send(phone, otp);
+    console.log({
+        phone,
+        otp
+    });
 }
 
-async function verifyOtp(data: { phone: string, otp: string }) {
+
+async function verifyOtpAndLogin(data: dto.UserCreateDto) {
     const key = `otp:${data.phone}`
     const checkKey = `otp:check:${data.phone}`
     const savedOtp = await redisClient.get(key)
     let checkCooldown = Number(await redisClient.get(checkKey))
 
-    if (!checkCooldown) {
+    if (checkCooldown === null) {
+        console.log("entered")
         checkCooldown = 0
         await redisClient.set(checkKey, 0, { EX: 300 })
     }
@@ -70,23 +82,92 @@ async function verifyOtp(data: { phone: string, otp: string }) {
         throw new AppError("too many OTP requests, please try again later", 429)
     }
     console.log(checkCooldown)
-    await redisClient.incr(checkKey)
 
     if (!savedOtp) {
         throw new AppError("no OTP sent for this number", 400)
-    } else {
-
     }
-    const compareResult = await bcrypt.compare(data.otp, savedOtp)
 
-    if (!compareResult) {
+    const hashedOtp = hashOtp(data.otp)
+
+    if (hashedOtp !== savedOtp) {
+        await redisClient.incr(checkKey)
         throw new AppError("wrong OTP", 400)
     }
 
-    console.log("logined")
+    const createdUser = await prisma.user.create({
+        data: {
+            phone: data.phone,
+            fullName: data.fullName
+        }
+    })
+
+    await redisClient.del(key)
+    await redisClient.del(checkKey)
+
+    // await createTokens(createdUser)
+}
+
+async function createTokens(user: User, rememberMe: boolean = false, deviceId: string, userAgent: string) {
+    const accessToken = jwt.sign({ id: user.id, role: user.role, status: user.status }, env("ACCESS_TOKEN_KEY"), { expiresIn: "5m" })
+    const refreshToken = jwt.sign({ id: user.id, role: user.role, deviceId }, env("REFRESH_TOKEN_KEY"), { expiresIn: rememberMe ? "15d" : "1d" })
+
+    const tokens = await prisma.token.findMany({
+        where: {
+            userId: user.id
+        },
+        orderBy: {
+            createdAt: "asc"
+        }
+    })
+
+    const firstTokenId = tokens[0].id
+
+    const maximumTokens = 5
+
+    if (tokens.length >= maximumTokens) {
+        await prisma.token.delete({
+            where: {
+                id: firstTokenId
+            }
+        })
+    }
+
+    const deviceTokens = await prisma.token.findMany({
+        where: { userId: user.id, deviceId }
+    })
+
+    const maximumDeviceTokens = 2
+    const firstDeviceToken = deviceTokens[0].id
+
+    if (deviceTokens.length >= maximumDeviceTokens) {
+        await prisma.token.delete({
+            where: {
+                id: firstDeviceToken
+            }
+        })
+    }
+
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * (rememberMe ? 15 : 1))
+
+    // await revokeUserToken(user.id, deviceId)
+
+    const hashedToken = await bcrypt.hash(refreshToken, 12)
+
+    await prisma.token.create({
+        data: {
+            hashedToken,
+            userId: user.id,
+            revoked: false,
+            deviceId: String(deviceId),
+            userAgent,
+            expiresAt
+        }
+    })
+
+    return { accessToken, refreshToken }
 }
 
 export {
     sendOtp,
-    verifyOtp
+    verifyOtpAndLogin
 }

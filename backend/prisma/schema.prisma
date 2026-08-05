@@ -30,15 +30,35 @@ model User {
   deletedById String?
   bannedAt DateTime?
   bannedById String?
+  banExpiresAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   deletedBy User? @relation( "deletedUsers", fields: [deletedById], references: [id], onDelete: SetNull)
+  bannedBy User? @relation( "bannedUsers", fields: [bannedById], references: [id], onDelete: SetNull)
+
 
   deletedUsers User[] @relation("deletedUsers")
-
-  bannedBy User? @relation( "bannedUsers", fields: [bannedById], references: [id], onDelete: SetNull)
   bannedUsers User[] @relation("bannedUsers")
+  tokens Token[]
 
   @@map("users")
+}
+
+model Token {
+  id String @id @default(cuid())
+  hashedToken String
+  userId String
+  revoked Boolean @default(false)
+  deviceId String
+  userAgent String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, deviceId])
+  
+  @@map("tokens")
 }

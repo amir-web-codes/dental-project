@@ -7,10 +7,24 @@ async function sendOtp(req: Request, res: Response): Promise<void> {
 
     res.json({
         success: true,
-        message: "OTP was sent successfuly"
+        message: "OTP sent successfuly"
+    })
+}
+
+async function verifyOtp(req: Request, res: Response): Promise<void> {
+    await userService.verifyOtpAndLogin({
+        phone: req.body.phone,
+        otp: req.body.otp,
+        fullName: req.body.fullName
+    })
+
+    res.json({
+        success: true,
+        message: "OTP verified successfully"
     })
 }
 
 export {
-    sendOtp
+    sendOtp,
+    verifyOtp
 }

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express"
 import rateLimit from "express-rate-limit"
 
-const sendOtpLimiter = rateLimit({
+const OtpLimiter = rateLimit({
     windowMs: 1000 * 60 * 5,
     max: 10,
     standardHeaders: true,
@@ -15,5 +15,5 @@ const sendOtpLimiter = rateLimit({
 })
 
 export {
-    sendOtpLimiter
+    OtpLimiter
 }
