@@ -20,45 +20,149 @@ enum UserStatus {
   DELETED
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum DentalSpecialty {
+  GENERAL
+  ORTHODONTICS
+  ENDODONTICS
+  PERIODONTICS
+  PROSTHODONTICS
+  ORAL_SURGERY
+}
+
+enum DentistVerificationStatus {
+  DRAFT
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DentistStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum RequestStatus {
+  OPEN
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id String @id @default(cuid())
-  phone String @unique
-  fullName String
-  role Role @default(USER)
+  id     String @id @default(cuid())
+  phone  String @unique
+
+  // پروفایل - بعد از OTP خالی هستن، با /users/me تکمیل میشن
+  name      String?
+  family    String?
+  birthDate DateTime?
+  gender    Gender?
+  profileCompleted Boolean @default(false)
+
+  role   Role       @default(USER)
   status UserStatus @default(ACTIVE)
-  deletedAt DateTime?
+
+  deletedAt   DateTime?
   deletedById String?
-  bannedAt DateTime?
-  bannedById String?
+
+  bannedAt     DateTime?
+  bannedById   String?
   banExpiresAt DateTime?
+  banReason    String?
+
+  unbannedAt   DateTime?
+  unbannedById String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  deletedBy User? @relation( "deletedUsers", fields: [deletedById], references: [id], onDelete: SetNull)
-  bannedBy User? @relation( "bannedUsers", fields: [bannedById], references: [id], onDelete: SetNull)
+  deletedBy   User? @relation("deletedUsers", fields: [deletedById], references: [id], onDelete: SetNull)
+  bannedBy    User? @relation("bannedUsers", fields: [bannedById], references: [id], onDelete: SetNull)
+  unbannedBy  User? @relation("unbannedUsers", fields: [unbannedById], references: [id], onDelete: SetNull)
 
+  deletedUsers  User[] @relation("deletedUsers")
+  bannedUsers   User[] @relation("bannedUsers")
+  unbannedUsers User[] @relation("unbannedUsers")
 
-  deletedUsers User[] @relation("deletedUsers")
-  bannedUsers User[] @relation("bannedUsers")
   tokens Token[]
+  dentist Dentist?
 
+  requests         Request[] @relation("userRequests")
+  reviewedRequests Request[] @relation("reviewedRequests")
+
+  @@index([role])
+  @@index([status])
   @@map("users")
 }
 
 model Token {
-  id String @id @default(cuid())
+  id          String   @id @default(cuid())
   hashedToken String
-  userId String
-  revoked Boolean @default(false)
-  deviceId String
-  userAgent String
-  createdAt DateTime @default(now())
-  expiresAt DateTime
+  userId      String
+  revoked     Boolean  @default(false)
+  deviceId    String
+  userAgent   String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, deviceId])
-  
   @@map("tokens")
+}
+
+model Dentist {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  licenseNumber String? @unique
+  bio           String?
+  specialty     DentalSpecialty?
+  yearsOfExperience Int?
+  clinicName    String?
+  clinicAddress String?
+
+  verificationStatus DentistVerificationStatus @default(DRAFT)
+  rejectionReason    String?
+
+  status DentistStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId])
+  @@index([licenseNumber])
+  @@index([specialty])
+  @@index([status, verificationStatus])
+  @@map("dentists")
+}
+
+model Request {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("userRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  requestedRole Role
+  reason        String?
+  status        RequestStatus @default(OPEN)
+
+  reviewedById String?
+  reviewedBy   User?   @relation("reviewedRequests", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("requests")
 }

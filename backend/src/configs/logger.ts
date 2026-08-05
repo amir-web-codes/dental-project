@@ -15,17 +15,17 @@ const logger = createLogger({
 
     transports: [
         new transports.File({
-            filename: "../logs/error.log",
+            filename: "./logs/error.log",
             level: "error"
         }),
 
         new transports.File({
-            filename: "../logs/warn.log",
+            filename: "./logs/warn.log",
             level: "warn"
         }),
 
         new transports.File({
-            filename: "../logs/combined.log"
+            filename: "./logs/combined.log"
         })
     ]
 })

@@ -3,7 +3,7 @@ import * as userService from "./user.service"
 import type { UserProfileDto } from "./user.dto"
 
 async function getUserProfile(req: Request, res: Response) {
-    const data = await userService.getUserById(req.user.id)
+    const data = await userService.getUserById(req.user!.id)
 
     res.json({
         success: true,
@@ -13,7 +13,7 @@ async function getUserProfile(req: Request, res: Response) {
 }
 
 async function updateUserProfile(req: Request, res: Response) {
-    const data = await userService.updateUserById(req.body, req.user.id)
+    const data = await userService.updateUserById(req.body, req.user!.id)
 
     res.json({
         success: true,

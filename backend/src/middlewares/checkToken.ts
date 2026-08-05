@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express"
 import env from "../utils/env"
 import jwt from "jsonwebtoken"
 import AppError from "../errors/AppError"
+import JWTPayload from "@/types/auth"
 
 
 export default function checkToken(req: Request, res: Response, next: NextFunction) {
@@ -14,7 +15,7 @@ export default function checkToken(req: Request, res: Response, next: NextFuncti
 
     try {
 
-        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY"))
+        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY")) as JWTPayload
         req.user = decoded
 
         next()

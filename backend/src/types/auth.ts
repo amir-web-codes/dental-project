@@ -1,4 +1,6 @@
-interface JWTPayload {
-    id: string,
-    role: "user" | "dentist" | "doctor"
+import type { Role } from "../generated/prisma";
+
+export default interface JWTPayload {
+    id: string;
+    role: Role;
 }

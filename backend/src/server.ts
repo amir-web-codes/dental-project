@@ -10,7 +10,7 @@ const PORT = env("PORT") || 3000;
 async function bootstrap() {
     try {
 
-        // await connectToDB()
+        await connectToDB()
         await connectRedis()
 
         app.listen(PORT, () => {

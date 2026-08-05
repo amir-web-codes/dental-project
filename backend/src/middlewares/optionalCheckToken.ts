@@ -2,19 +2,20 @@ import type { Request, Response, NextFunction } from "express";
 import AppError from "../errors/AppError";
 import jwt from "jsonwebtoken";
 import env from "../utils/env"
+import type JWTPayload from "@/types/auth";
 
 export default function optionalCheckToken(req: Request, res: Response, next: NextFunction) {
     const header = req.headers.authorization
     const token = header && header.split(" ")[1]
 
     if (!token) {
-        req.user = null
+        req.user = {} as JWTPayload
         return next()
     }
 
     try {
 
-        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY"))
+        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY")) as JWTPayload
         req.user = decoded
 
         next()
