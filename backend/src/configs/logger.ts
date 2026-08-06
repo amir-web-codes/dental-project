@@ -1,33 +1,64 @@
-import env from "../utils/env"
-const { createLogger, format, transports } = require("winston")
+import winston from "winston";
+import DailyRotateFile from "winston-daily-rotate-file";
+import path from "path";
+import env from "../utils/env";
 
+const isProd = env("NODE_ENV") === "production";
+const logsDir = path.join(__dirname, "../../logs");
 
-const logger = createLogger({
-    level: env("NODE_ENV") === "production"
-        ? "info"
-        : "debug",
+const baseFormat = winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+);
 
-    format: format.combine(
-        format.timestamp(),
-        format.errors({ stack: true }),
-        format.json()
-    ),
+function onlyLevel(level: string) {
+    return winston.format((info) => (info.level === level ? info : false))();
+}
 
-    transports: [
-        new transports.File({
-            filename: "./logs/error.log",
-            level: "error"
-        }),
+function levelTransport(level: "error" | "warn" | "info") {
+    return new DailyRotateFile({
+        dirname: logsDir,
+        filename: `${level}-%DATE%.log`,
+        datePattern: "YYYY-MM-DD",
+        zippedArchive: true,
+        maxSize: "20m",
+        maxFiles: "14d",
+        format: winston.format.combine(onlyLevel(level), baseFormat)
+    });
+}
 
-        new transports.File({
-            filename: "./logs/warn.log",
-            level: "warn"
-        }),
+const combinedTransport = new DailyRotateFile({
+    dirname: logsDir,
+    filename: "combined-%DATE%.log",
+    datePattern: "YYYY-MM-DD",
+    zippedArchive: true,
+    maxSize: "20m",
+    maxFiles: "7d",
+    format: baseFormat
+});
 
-        new transports.File({
-            filename: "./logs/combined.log"
+const transports: winston.transport[] = [
+    levelTransport("error"),
+    levelTransport("warn"),
+    levelTransport("info"),
+    combinedTransport
+];
+
+if (!isProd) {
+    transports.push(
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+            )
         })
-    ]
-})
+    );
+}
 
-export default logger
+const logger = winston.createLogger({
+    level: "info",
+    transports
+});
+
+export default logger;
