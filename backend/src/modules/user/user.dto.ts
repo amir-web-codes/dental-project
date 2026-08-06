@@ -1,36 +1,36 @@
-import type { Role, UserStatus } from "../../generated/prisma"
-import { Prisma } from "../../generated/prisma/client"
+import type { Role, UserStatus, Gender } from "../../generated/prisma";
 
-type UserDto = Prisma.UserGetPayload<{}>
-
-type UserProfileDto = Prisma.UserGetPayload<{
-    select: {
-        id: true
-        phone: true
-        name: true
-        family: true
-        role: true
-        status: true
-        birthDate: true
-        profileCompleted: true
-    }
-}>
-
-interface UserUpdateDto {
-    name?: string,
-    family?: string
+interface UserProfileDto {
+    id: string;
+    phone: string;
+    name: string | null;
+    family: string | null;
+    birthDate: Date | null;
+    gender: Gender | null;
+    role: Role;
+    status: UserStatus;
+    profileCompleted: boolean;
 }
 
-interface UserCreateDto {
-    otp: string,
-    phone: string,
-    name: string,
-    family: string
+interface UserUpdateProfileDto {
+    name?: string;
+    family?: string;
+    birthDate?: string;
+    gender?: Gender;
+}
+
+interface AdminUserDetailDto extends UserProfileDto {
+    deletedAt: Date | null;
+    bannedAt: Date | null;
+    banExpiresAt: Date | null;
+    banReason: string | null;
+    unbannedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export {
-    UserDto,
     UserProfileDto,
-    UserUpdateDto,
-    UserCreateDto
-}
+    UserUpdateProfileDto,
+    AdminUserDetailDto
+};
