@@ -107,3 +107,5 @@ ALTER TABLE "requests" ADD CONSTRAINT "requests_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "requests" ADD CONSTRAINT "requests_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+CREATE UNIQUE INDEX "requests_open_user_unique" ON "requests" ("userId") WHERE "status" = 'OPEN';

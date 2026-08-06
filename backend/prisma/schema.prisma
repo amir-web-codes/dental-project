@@ -56,8 +56,6 @@ enum RequestStatus {
 model User {
   id     String @id @default(cuid())
   phone  String @unique
-
-  // پروفایل - بعد از OTP خالی هستن، با /users/me تکمیل میشن
   name      String?
   family    String?
   birthDate DateTime?

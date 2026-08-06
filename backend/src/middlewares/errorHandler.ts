@@ -3,21 +3,21 @@ import logger from "../configs/logger";
 import AppError from "../errors/AppError";
 
 async function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction) {
+    let status: number;
+    let message: string;
+    let stack: string | undefined;
+    let errors: unknown;
 
-    let status;
-    let message;
-    let stack
-    let errors;
     if (err instanceof AppError) {
-        status = err.status
-        message = err.message
-        stack = err.stack
-        errors = err.errors
+        status = err.status;
+        message = err.message;
+        stack = err.stack;
+        errors = err.errors;
     } else {
-        status = 500
-        message = "internal server error"
-        stack = undefined
-        errors = undefined
+        status = 500;
+        message = "internal server error";
+        stack = err instanceof Error ? err.stack : String(err);
+        errors = undefined;
     }
 
     const context = {
@@ -26,28 +26,27 @@ async function errorHandler(err: unknown, req: Request, res: Response, next: Nex
         url: req.originalUrl,
         ip: req.ip,
         userId: req.user?.id,
+        userRole: req.user?.role,
+        userAgent: req.headers["user-agent"],
         status,
         message,
         stack,
         errors
-    }
+    };
 
     if (status >= 500) {
-
-        console.error(stack)
-        logger.error(context)
-
+        logger.error(context);
+        console.log(stack)
     } else {
-        logger.warn(context)
+        logger.warn(context);
     }
 
     res.status(status).json({
         success: false,
-        message: message,
+        message,
         errors,
         requestId: req.requestId
-    })
-
+    });
 }
 
-export default errorHandler
+export default errorHandler;

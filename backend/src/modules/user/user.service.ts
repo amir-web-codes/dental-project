@@ -33,7 +33,8 @@ async function getUserById(id: string, getDeleted: boolean = false, isAdmin: boo
 async function updateUserById(body: userDto.UserUpdateDto, id: string): Promise<userDto.UserProfileDto> {
     const query: Prisma.UserUpdateInput = {};
 
-    if (body.fullName !== undefined) query.fullName = body.fullName
+    if (body.name !== undefined) query.name = body.name
+    if (body.family !== undefined) query.family = body.family
 
     const data = await prisma.user.update({
         where: {
@@ -41,6 +42,10 @@ async function updateUserById(body: userDto.UserUpdateDto, id: string): Promise<
         },
         data: query
     })
+
+    if (data) {
+
+    }
 
     return data
 }

@@ -94,12 +94,12 @@ async function verifyOtpAndLogin(data: dto.UserCreateDto) {
         throw new AppError("wrong OTP", 400)
     }
 
-    const createdUser = await prisma.user.create({
-        data: {
-            phone: data.phone,
-            fullName: data.fullName
-        }
-    })
+    // const createdUser = await prisma.user.create({
+    //     data: {
+    //         phone: data.phone,
+    //         fullName: data.fullName
+    //     }
+    // })
 
     await redisClient.del(key)
     await redisClient.del(checkKey)
