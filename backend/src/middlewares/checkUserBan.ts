@@ -2,44 +2,9 @@ import type { Request, Response, NextFunction } from "express";
 import prisma from "../configs/prisma";
 import AppError from "../errors/AppError";
 import logger from "../configs/logger";
-import {
-    getUserStateCache,
-    setUserStateCache,
-    invalidateUserStateCache,
-    UserStateCache
-} from "../utils/userState.cache";
+import loadState from "../utils/cache/loadUserState"
+import { invalidateUserStateCache } from "../../../userState.cache";
 import { restoreDentistProfileIfSuspended } from "../modules/user/dentist/dentist.service";
-
-async function loadState(userId: string): Promise<UserStateCache> {
-    let state = await getUserStateCache(userId);
-    if (state) return state;
-
-    const dbUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            status: true,
-            banExpiresAt: true,
-            banReason: true,
-            profileCompleted: true,
-            role: true
-        }
-    });
-
-    if (!dbUser) {
-        throw new AppError("user not found", 404);
-    }
-
-    state = {
-        status: dbUser.status,
-        banExpiresAt: dbUser.banExpiresAt ? dbUser.banExpiresAt.toISOString() : null,
-        banReason: dbUser.banReason,
-        profileCompleted: dbUser.profileCompleted,
-        role: dbUser.role
-    };
-
-    await setUserStateCache(userId, state);
-    return state;
-}
 
 export default async function checkUserBan(req: Request, res: Response, next: NextFunction) {
     const userId = req.user?.id;
