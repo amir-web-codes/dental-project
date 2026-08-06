@@ -1,5 +1,6 @@
 import rateLimit from "express-rate-limit";
 import type { Request, Response, NextFunction } from "express";
+import AppError from "../errors/AppError";
 
 interface KeyedLimiterOptions {
     windowMs: number;
@@ -15,10 +16,7 @@ export default function createKeyedLimiter(options: KeyedLimiterOptions) {
         legacyHeaders: false,
         keyGenerator: (req: Request) => req.user?.id ?? req.ip ?? "unknown",
         handler: (req: Request, res: Response, next: NextFunction) => {
-            res.status(429).json({
-                success: false,
-                message: options.message ?? "you're sending too many requests, slow down"
-            });
+            throw new AppError(options.message ?? "you're sending too many requests, slow down", 429)
         }
     });
 }

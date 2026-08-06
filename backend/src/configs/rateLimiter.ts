@@ -1,3 +1,4 @@
+import AppError from "../errors/AppError"
 import type { Request, Response, NextFunction } from "express"
 import rateLimit from "express-rate-limit"
 
@@ -7,9 +8,6 @@ export default rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response, next: NextFunction) => {
-        res.status(429).json({
-            success: false,
-            message: "you're sending too many requests, slow down"
-        })
+        throw new AppError("you're sending too many requests, slow down", 429)
     }
 })
