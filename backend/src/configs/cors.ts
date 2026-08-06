@@ -1,3 +1,4 @@
+import AppError from "../errors/AppError"
 import { CorsOptions } from "cors"
 
 const allowedOrigins = [
@@ -17,7 +18,7 @@ const corsOptions: CorsOptions = {
             return callback(null, true)
         }
 
-        callback(new Error("Not allowed by CORS"))
+        callback(new AppError("Not allowed by CORS", 400))
     },
 
     credentials: true,
