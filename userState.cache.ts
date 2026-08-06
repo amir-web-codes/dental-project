@@ -1,5 +1,5 @@
-import { redisClient } from "../configs/redis";
-import logger from "../configs/logger";
+import { redisClient } from "./backend/src/configs/redis";
+import logger from "./backend/src/configs/logger";
 
 export interface UserStateCache {
     status: "ACTIVE" | "BANNED" | "DELETED";

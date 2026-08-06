@@ -20,7 +20,10 @@
     }
   },
   "include": [
-    "src"
+    "src",
+    "../rateLimiter.ts",
+    "../userState.cache.ts",
+    "../pagination.ts"
   ],
   "exclude": [
     "node_modules"
