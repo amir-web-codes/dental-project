@@ -21,9 +21,9 @@
   },
   "include": [
     "src",
-    "../rateLimiter.ts",
-    "../userState.cache.ts",
-    "../pagination.ts"
+    "src/utils/rateLimiter.ts",
+    "src/utils/cache/userState.cache.ts",
+    "src/utils/pagination.ts"
   ],
   "exclude": [
     "node_modules"

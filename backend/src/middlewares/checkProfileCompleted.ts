@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import prisma from "../configs/prisma";
 import AppError from "../errors/AppError";
-import loadState from "@/utils/cache/loadUserState";
+import loadState from "../utils/cache/loadUserState";
 
 export default async function checkProfileCompleted(req: Request, res: Response, next: NextFunction) {
     const userId = req.user?.id;

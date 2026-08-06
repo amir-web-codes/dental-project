@@ -5,7 +5,7 @@ import {
     setUserStateCache,
     invalidateUserStateCache,
     UserStateCache
-} from "../../../userState.cache";
+} from "./userState.cache";
 
 export default async function loadState(userId: string): Promise<UserStateCache> {
     let state = await getUserStateCache(userId);

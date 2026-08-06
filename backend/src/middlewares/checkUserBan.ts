@@ -3,7 +3,7 @@ import prisma from "../configs/prisma";
 import AppError from "../errors/AppError";
 import logger from "../configs/logger";
 import loadState from "../utils/cache/loadUserState"
-import { invalidateUserStateCache } from "../../../userState.cache";
+import { invalidateUserStateCache } from "../utils/cache/userState.cache";
 import { restoreDentistProfileIfSuspended } from "../modules/user/dentist/dentist.service";
 
 export default async function checkUserBan(req: Request, res: Response, next: NextFunction) {
