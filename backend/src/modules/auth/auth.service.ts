@@ -66,46 +66,46 @@ async function sendOtp(phone: string) {
 }
 
 
-async function verifyOtpAndLogin(data: dto.UserCreateDto) {
-    const key = `otp:${data.phone}`
-    const checkKey = `otp:check:${data.phone}`
-    const savedOtp = await redisClient.get(key)
-    let checkCooldown = Number(await redisClient.get(checkKey))
+// async function verifyOtpAndLogin(data: dto.UserCreateDto) {
+//     const key = `otp:${data.phone}`
+//     const checkKey = `otp:check:${data.phone}`
+//     const savedOtp = await redisClient.get(key)
+//     let checkCooldown = Number(await redisClient.get(checkKey))
 
-    if (checkCooldown === null) {
-        console.log("entered")
-        checkCooldown = 0
-        await redisClient.set(checkKey, 0, { EX: 300 })
-    }
+//     if (checkCooldown === null) {
+//         console.log("entered")
+//         checkCooldown = 0
+//         await redisClient.set(checkKey, 0, { EX: 300 })
+//     }
 
-    if (checkCooldown > MAX_CHECK_TRIES) {
-        throw new AppError("too many OTP requests, please try again later", 429)
-    }
-    console.log(checkCooldown)
+//     if (checkCooldown > MAX_CHECK_TRIES) {
+//         throw new AppError("too many OTP requests, please try again later", 429)
+//     }
+//     console.log(checkCooldown)
 
-    if (!savedOtp) {
-        throw new AppError("no OTP sent for this number", 400)
-    }
+//     if (!savedOtp) {
+//         throw new AppError("no OTP sent for this number", 400)
+//     }
 
-    const hashedOtp = hashOtp(data.otp)
+//     const hashedOtp = hashOtp(data.otp)
 
-    if (hashedOtp !== savedOtp) {
-        await redisClient.incr(checkKey)
-        throw new AppError("wrong OTP", 400)
-    }
+//     if (hashedOtp !== savedOtp) {
+//         await redisClient.incr(checkKey)
+//         throw new AppError("wrong OTP", 400)
+//     }
 
-    // const createdUser = await prisma.user.create({
-    //     data: {
-    //         phone: data.phone,
-    //         fullName: data.fullName
-    //     }
-    // })
+//     // const createdUser = await prisma.user.create({
+//     //     data: {
+//     //         phone: data.phone,
+//     //         fullName: data.fullName
+//     //     }
+//     // })
 
-    await redisClient.del(key)
-    await redisClient.del(checkKey)
+//     await redisClient.del(key)
+//     await redisClient.del(checkKey)
 
-    // await createTokens(createdUser)
-}
+//     // await createTokens(createdUser)
+// }
 
 async function createTokens(user: User, rememberMe: boolean = false, deviceId: string, userAgent: string) {
     const accessToken = jwt.sign({ id: user.id, role: user.role, status: user.status }, env("ACCESS_TOKEN_KEY"), { expiresIn: "5m" })
@@ -169,5 +169,5 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
 
 export {
     sendOtp,
-    verifyOtpAndLogin
+    // verifyOtpAndLogin
 }

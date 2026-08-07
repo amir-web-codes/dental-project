@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import AppError from "../errors/AppError";
 import jwt from "jsonwebtoken";
 import env from "../utils/env";
-import type JWTPayload from "../types/auth";
+import type { JWTPayload } from "../types/auth";
 
 export default function optionalCheckToken(req: Request, res: Response, next: NextFunction) {
     const header = req.headers.authorization;

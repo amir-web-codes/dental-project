@@ -1,11 +1,12 @@
-import express, { type Request, Response, NextFunction } from "express"
-const router = express.Router()
+import express from "express";
+const router = express.Router();
 
-import { checkToken, checkRole } from "../../middlewares"
-import * as userController from "./user.controller"
+import { checkToken, checkUserBan, validator } from "../../middlewares";
+import { updateProfileSchema } from "./user.validation";
+import * as userController from "./user.controller";
 
 router.route("/me")
     .get(checkToken, userController.getUserProfile)
-    .patch(checkToken, userController.updateUserProfile)
+    .patch(checkToken, checkUserBan, validator(updateProfileSchema), userController.updateUserProfile);
 
-export default router
+export default router;
