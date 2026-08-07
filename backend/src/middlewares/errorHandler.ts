@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../configs/logger";
 import AppError from "../errors/AppError";
+import { ZodError } from "zod";
 
 async function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction) {
     let status: number;
@@ -13,6 +14,11 @@ async function errorHandler(err: unknown, req: Request, res: Response, next: Nex
         message = err.message;
         stack = err.stack;
         errors = err.errors;
+    } else if (err instanceof ZodError) {
+        status = 475
+        message = "invalid inputs"
+        stack = undefined
+        errors = err.issues
     } else {
         status = 500;
         message = "internal server error";
