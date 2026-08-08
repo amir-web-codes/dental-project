@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
 import env from "../../utils/env"
 import { redisClient } from "../../configs/redis"
+import * as smsService from "./sms.service"
 
 const OTP_EXPIRE_TIME = 120;
 const OTP_SEND_LIMIT = 5;
@@ -23,7 +24,7 @@ async function sendOtp(phone: string) {
     const otpKey = `otp:${phone}`;
     const countKey = `otp:count:${phone}`;
 
-    const currentCount = Number(await redisClient.get(countKey));
+    const currentCount = Number(await redisClient.get(countKey) ?? 0);
 
     if (currentCount >= OTP_SEND_LIMIT) {
         throw new AppError("too many OTP requests, try again later", 429);
@@ -48,21 +49,13 @@ async function sendOtp(phone: string) {
             429
         );
     }
-    const count = await redisClient.incr(countKey);
+    const cachedCount = await redisClient.incr(countKey);
 
-    if (count === 1) {
-        await redisClient.expire(
-            countKey,
-            OTP_LIMIT_WINDOW
-        );
+    if (cachedCount === 1) {
+        await redisClient.expire(countKey, OTP_LIMIT_WINDOW);
     }
 
-    // 5. Send SMS here
-    // await smsProvider.send(phone, otp);
-    console.log({
-        phone,
-        otp
-    });
+    await smsService.sendSms(phone, otp)
 }
 
 

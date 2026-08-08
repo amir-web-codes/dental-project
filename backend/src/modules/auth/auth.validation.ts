@@ -36,7 +36,7 @@ const sendOtpSchema = z.object({
 });
 
 const verifyOtpSchema = z.object({
-    phone: z.string().trim().min(1, "Phone number is required"),
+    phone: z.string().trim().min(1, "Phone number is required").transform(normalizePhone),
     otp: z.string().trim().regex(/^\d{6}$/, "OTP must be 6 digits")
 })
 

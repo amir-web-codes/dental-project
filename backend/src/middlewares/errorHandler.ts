@@ -15,7 +15,7 @@ async function errorHandler(err: unknown, req: Request, res: Response, next: Nex
         stack = err.stack;
         errors = err.errors;
     } else if (err instanceof ZodError) {
-        status = 475
+        status = 400
         message = "invalid inputs"
         stack = undefined
         errors = err.issues
