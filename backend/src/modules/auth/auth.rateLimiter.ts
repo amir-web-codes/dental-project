@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit"
 
 const OtpLimiter = rateLimit({
     windowMs: 1000 * 60 * 5,
-    max: 10,
+    max: 20,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response, next: NextFunction) => {

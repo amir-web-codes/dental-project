@@ -1,4 +1,3 @@
-import type * as dto from "../user/user.dto"
 import type { User } from "@/generated/prisma"
 import crypto from "crypto"
 import prisma from "../../configs/prisma"
@@ -12,7 +11,7 @@ import * as smsService from "./sms.service"
 const OTP_EXPIRE_TIME = 120;
 const OTP_SEND_LIMIT = 5;
 const MAX_CHECK_TRIES = 10
-const OTP_LIMIT_WINDOW = 900; // 15 minutes
+const OTP_LIMIT_WINDOW = 60 * 10; // 15 minutes
 
 
 function hashOtp(otp: string): string {
@@ -49,56 +48,51 @@ async function sendOtp(phone: string) {
             429
         );
     }
-    const cachedCount = await redisClient.incr(countKey);
+    const attempts = await redisClient.incr(countKey);
 
-    if (cachedCount === 1) {
+    if (attempts === 1) {
         await redisClient.expire(countKey, OTP_LIMIT_WINDOW);
     }
 
     await smsService.sendSms(phone, otp)
 }
 
+async function verifyOtpAndLogin(data: { phone: string, otp: string }) {
+    const otpKey = `otp:${data.phone}`
+    const checkKey = `otp:check:${data.phone}`
+    const savedOtp = await redisClient.get(otpKey)
+    const checkAttempts = Number(await redisClient.get(checkKey) ?? 0)
 
-// async function verifyOtpAndLogin(data: dto.UserCreateDto) {
-//     const key = `otp:${data.phone}`
-//     const checkKey = `otp:check:${data.phone}`
-//     const savedOtp = await redisClient.get(key)
-//     let checkCooldown = Number(await redisClient.get(checkKey))
+    if (checkAttempts >= MAX_CHECK_TRIES) {
+        throw new AppError("too many OTP requests, please try again later", 429)
+    }
 
-//     if (checkCooldown === null) {
-//         console.log("entered")
-//         checkCooldown = 0
-//         await redisClient.set(checkKey, 0, { EX: 300 })
-//     }
+    if (!savedOtp) {
+        throw new AppError("no OTP sent for this number or Expired", 400)
+    }
 
-//     if (checkCooldown > MAX_CHECK_TRIES) {
-//         throw new AppError("too many OTP requests, please try again later", 429)
-//     }
-//     console.log(checkCooldown)
+    const hashedOtp = hashOtp(data.otp)
+    const attempts = await redisClient.incr(checkKey)
+    if (attempts === 1) {
+        await redisClient.expire(checkKey, 300);
+    }
 
-//     if (!savedOtp) {
-//         throw new AppError("no OTP sent for this number", 400)
-//     }
+    if (hashedOtp !== savedOtp) {
+        throw new AppError("wrong OTP", 400)
+    }
 
-//     const hashedOtp = hashOtp(data.otp)
+    // const createdUser = await prisma.user.create({
+    //     data: {
+    //         phone: data.phone,
+    //         fullName: data.fullName
+    //     }
+    // })
 
-//     if (hashedOtp !== savedOtp) {
-//         await redisClient.incr(checkKey)
-//         throw new AppError("wrong OTP", 400)
-//     }
+    await redisClient.del(otpKey)
+    await redisClient.del(checkKey)
 
-//     // const createdUser = await prisma.user.create({
-//     //     data: {
-//     //         phone: data.phone,
-//     //         fullName: data.fullName
-//     //     }
-//     // })
-
-//     await redisClient.del(key)
-//     await redisClient.del(checkKey)
-
-//     // await createTokens(createdUser)
-// }
+    // await createTokens(createdUser)
+}
 
 async function createTokens(user: User, rememberMe: boolean = false, deviceId: string, userAgent: string) {
     const accessToken = jwt.sign({ id: user.id, role: user.role, status: user.status }, env("ACCESS_TOKEN_KEY"), { expiresIn: "5m" })
@@ -162,5 +156,5 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
 
 export {
     sendOtp,
-    // verifyOtpAndLogin
+    verifyOtpAndLogin
 }

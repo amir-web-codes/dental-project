@@ -12,11 +12,10 @@ async function sendOtp(req: Request, res: Response): Promise<void> {
 }
 
 async function verifyOtp(req: Request, res: Response): Promise<void> {
-    // await userService.verifyOtpAndLogin({
-    //     phone: req.body.phone,
-    //     otp: req.body.otp,
-    //     // fullName: req.body.fullName
-    // })
+    await userService.verifyOtpAndLogin({
+        phone: req.body.phone,
+        otp: req.body.otp
+    })
 
     res.json({
         success: true,
