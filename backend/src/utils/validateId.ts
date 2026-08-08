@@ -7,6 +7,5 @@ const idSchema = z.object({
 })
 
 export default function validateId(req: Request) {
-
-    return idSchema.parse(req.params.id)
+    return idSchema.parse({ id: req.params.id }).id
 }

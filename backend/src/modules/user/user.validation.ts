@@ -11,4 +11,14 @@ const updateProfileSchema = z.object({
     message: "at least one field must be provided"
 });
 
-export { updateProfileSchema };
+const includeDeletedSchema = z.object({
+    includeDeleted: z
+        .enum(["true", "false"])
+        .transform(value => value === "true")
+        .optional()
+});
+
+export {
+    updateProfileSchema,
+    includeDeletedSchema
+};

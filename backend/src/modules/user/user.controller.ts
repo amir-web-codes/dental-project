@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import * as userService from "./user.service";
 import checkRequest from "../../utils/checkRequest";
+import validateId from "../../utils/validateId";
 
 async function getUserProfile(req: Request, res: Response): Promise<void> {
     const user = checkRequest(req)
@@ -24,7 +25,21 @@ async function updateUserProfile(req: Request, res: Response): Promise<void> {
     });
 }
 
+async function getUserDetailForAdmin(req: Request, res: Response): Promise<void> {
+    const id = validateId(req)
+    const deleted = req.params.includeDeleted ? true : false
+
+    const data = await userService.getUserDetailForAdmin(id, { includeDeleted: deleted })
+
+    res.json({
+        success: true,
+        message: "user fetched successfully",
+        data
+    })
+}
+
 export {
     getUserProfile,
-    updateUserProfile
+    updateUserProfile,
+    getUserDetailForAdmin
 };

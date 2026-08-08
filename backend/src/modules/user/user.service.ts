@@ -2,22 +2,41 @@ import prisma from "../../configs/prisma";
 import AppError from "../../errors/AppError";
 import type { Prisma, User } from "../../generated/prisma";
 import { invalidateUserStateCache } from "../../utils/cache/userState.cache";
-import type * as userDto from "./user.dto";
+import * as userDto from "./user.dto";
 
-async function findUserByIdOrThrow(id: string, options: { includeDeleted?: boolean } = {}): Promise<User> {
-    const query: Prisma.UserWhereInput = { id };
+async function findUserByIdOrThrow(id: string): Promise<User> {
 
-    if (!options.includeDeleted) {
-        query.status = { not: "DELETED" };
-    }
-
-    const user = await prisma.user.findFirst({ where: query });
+    const user = await prisma.user.findUnique({
+        where: {
+            id
+        }
+    });
 
     if (!user) {
         throw new AppError("user not found", 404);
     }
 
     return user;
+}
+
+async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boolean } = {}): Promise<userDto.AdminUserDetailDto> {
+    const query: Prisma.UserWhereInput = { id }
+    const include = userDto.UserInclude
+
+    if (!options.includeDeleted) {
+        query.status = { not: "DELETED" };
+    }
+
+    const user = await prisma.user.findFirst({
+        where: query,
+        include
+    })
+
+    if (!user) {
+        throw new AppError("user not found", 404);
+    }
+
+    return toAdminDetailDto(user);
 }
 
 function toProfileDto(user: User): userDto.UserProfileDto {
@@ -34,14 +53,17 @@ function toProfileDto(user: User): userDto.UserProfileDto {
     };
 }
 
-function toAdminDetailDto(user: User): userDto.AdminUserDetailDto {
+function toAdminDetailDto(user: userDto.AdminUser): userDto.AdminUserDetailDto {
     return {
         ...toProfileDto(user),
         deletedAt: user.deletedAt,
+        deletedBy: user.deletedBy,
         bannedAt: user.bannedAt,
+        bannedBy: user.bannedBy,
         banExpiresAt: user.banExpiresAt,
         banReason: user.banReason,
         unbannedAt: user.unbannedAt,
+        unbannedBy: user.unbannedBy,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
     };
@@ -76,11 +98,6 @@ async function updateUserProfile(id: string, body: userDto.UserUpdateProfileDto)
     await invalidateUserStateCache(id);
 
     return toProfileDto(updated);
-}
-
-async function getUserDetailForAdmin(id: string): Promise<userDto.AdminUserDetailDto> {
-    const user = await findUserByIdOrThrow(id, { includeDeleted: true });
-    return toAdminDetailDto(user);
 }
 
 export {
