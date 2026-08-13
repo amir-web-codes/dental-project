@@ -1,25 +1,28 @@
-import type { User } from "@/generated/prisma"
-import crypto from "crypto"
+import crypto from "crypto";
+import AppError from "../../errors/AppError";
+import { redisClient } from "../../configs/redis";
+import { toProfileDto } from "../user/user.service";
+import * as smsService from "./sms.service";
 import prisma from "../../configs/prisma"
-import AppError from "../../errors/AppError"
 import jwt from "jsonwebtoken"
-import bcrypt from "bcrypt"
 import env from "../../utils/env"
-import { redisClient } from "../../configs/redis"
-import * as smsService from "./sms.service"
+import bcrypt from "bcrypt"
+import * as authDto from "./auth.dto"
 
 const OTP_EXPIRE_TIME = 120;
 const OTP_SEND_LIMIT = 5;
-const MAX_CHECK_TRIES = 10
-const OTP_LIMIT_WINDOW = 60 * 10; // 15 minutes
+const OTP_LIMIT_WINDOW = 60 * 10;
+const MAX_CHECK_TRIES = 5;
+const OTP_CHECK_WINDOW = 60 * 5;
 
+const maximumTokens = 5
+const maximumDeviceTokens = 2
 
 function hashOtp(otp: string): string {
     return crypto.createHash("sha256").update(otp).digest("hex");
 }
 
-
-async function sendOtp(phone: string) {
+async function sendOtp(phone: string): Promise<void> {
     const otpKey = `otp:${phone}`;
     const countKey = `otp:count:${phone}`;
 
@@ -51,52 +54,95 @@ async function sendOtp(phone: string) {
     const attempts = await redisClient.incr(countKey);
 
     if (attempts === 1) {
-        await redisClient.expire(countKey, OTP_LIMIT_WINDOW);
+        await redisClient.expire(
+            countKey,
+            OTP_LIMIT_WINDOW
+        );
     }
 
-    await smsService.sendSms(phone, otp)
+    try {
+        await smsService.sendSms(phone, otp);
+    } catch {
+
+        await redisClient.del(otpKey);
+        throw new AppError("failed to send OTP, please try again later", 503);
+    }
 }
 
-async function verifyOtpAndLogin(data: { phone: string, otp: string }) {
-    const otpKey = `otp:${data.phone}`
-    const checkKey = `otp:check:${data.phone}`
-    const savedOtp = await redisClient.get(otpKey)
-    const checkAttempts = Number(await redisClient.get(checkKey) ?? 0)
+async function verifyOtpAndLogin(data: { phone: string; otp: string; }): Promise<void> {
 
-    if (checkAttempts >= MAX_CHECK_TRIES) {
-        throw new AppError("too many OTP requests, please try again later", 429)
-    }
+    const otpKey = `otp:${data.phone}`;
+    const checkKey = `otp:check:${data.phone}`;
+    const countKey = `otp:count:${data.phone}`;
+
+    const savedOtp = await redisClient.get(otpKey);
 
     if (!savedOtp) {
-        throw new AppError("no OTP sent for this number or Expired", 400)
+        throw new AppError("OTP not found or expired", 400);
     }
 
-    const hashedOtp = hashOtp(data.otp)
-    const attempts = await redisClient.incr(checkKey)
-    if (attempts === 1) {
-        await redisClient.expire(checkKey, 300);
+    const checkAttempts = Number(
+        await redisClient.get(checkKey) ?? 0
+    );
+
+    if (checkAttempts >= MAX_CHECK_TRIES) {
+        throw new AppError("too many OTP attempts, please try again later", 429);
     }
+
+    const attempts = await redisClient.incr(checkKey);
+
+    if (attempts === 1) {
+        await redisClient.expire(
+            checkKey,
+            OTP_CHECK_WINDOW
+        );
+    }
+
+    const hashedOtp = hashOtp(data.otp);
 
     if (hashedOtp !== savedOtp) {
-        throw new AppError("wrong OTP", 400)
+        throw new AppError("wrong OTP", 400);
     }
 
-    // const createdUser = await prisma.user.create({
-    //     data: {
-    //         phone: data.phone,
-    //         fullName: data.fullName
-    //     }
-    // })
-
-    await redisClient.del(otpKey)
-    await redisClient.del(checkKey)
-
-    // await createTokens(createdUser)
+    await redisClient.del([
+        otpKey,
+        checkKey,
+        countKey
+    ]);
 }
 
-async function createTokens(user: User, rememberMe: boolean = false, deviceId: string, userAgent: string) {
+async function createUserAndToken(phone: string, userAgent: string, deviceId: string): Promise<authDto.UserAndTokens> {
+    let createdUser = await prisma.user.findUnique({
+        where: {
+            phone
+        }
+    })
+
+    if (!createdUser) {
+        createdUser = await prisma.user.create({
+            data: {
+                phone
+            }
+        });
+    }
+
+    const userToken = {
+        id: createdUser.id,
+        role: createdUser.role,
+        status: createdUser.status
+    }
+
+    const { accessToken, refreshToken } = await createTokens(userToken, userAgent, deviceId);
+    const user = toProfileDto(createdUser)
+
+    console.log(user)
+
+    return { accessToken, refreshToken }
+}
+
+async function createTokens(user: authDto.UserForToken, userAgent: string, deviceId: string): Promise<authDto.Tokens> {
     const accessToken = jwt.sign({ id: user.id, role: user.role, status: user.status }, env("ACCESS_TOKEN_KEY"), { expiresIn: "5m" })
-    const refreshToken = jwt.sign({ id: user.id, role: user.role, deviceId }, env("REFRESH_TOKEN_KEY"), { expiresIn: rememberMe ? "15d" : "1d" })
+    const refreshToken = jwt.sign({ id: user.id, role: user.role, deviceId }, env("REFRESH_TOKEN_KEY"), { expiresIn: "15d" })
 
     const tokens = await prisma.token.findMany({
         where: {
@@ -107,11 +153,9 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
         }
     })
 
-    const firstTokenId = tokens[0].id
-
-    const maximumTokens = 5
-
     if (tokens.length >= maximumTokens) {
+        const firstTokenId = tokens[0].id
+
         await prisma.token.delete({
             where: {
                 id: firstTokenId
@@ -123,10 +167,10 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
         where: { userId: user.id, deviceId }
     })
 
-    const maximumDeviceTokens = 2
-    const firstDeviceToken = deviceTokens[0].id
 
     if (deviceTokens.length >= maximumDeviceTokens) {
+        const firstDeviceToken = deviceTokens[0].id
+
         await prisma.token.delete({
             where: {
                 id: firstDeviceToken
@@ -134,9 +178,9 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
         })
     }
 
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * (rememberMe ? 15 : 1))
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 15)
 
-    // await revokeUserToken(user.id, deviceId)
+    await revokeUserToken(user.id, deviceId)
 
     const hashedToken = await bcrypt.hash(refreshToken, 12)
 
@@ -154,7 +198,31 @@ async function createTokens(user: User, rememberMe: boolean = false, deviceId: s
     return { accessToken, refreshToken }
 }
 
+async function revokeUserToken(userId: string, deviceId: string): Promise<void> {
+    if (deviceId) {
+        await prisma.token.updateMany({
+            where: {
+                userId,
+                deviceId
+            },
+            data: {
+                revoked: true
+            }
+        })
+    } else {
+        await prisma.token.updateMany({
+            where: {
+                userId
+            },
+            data: {
+                revoked: true
+            }
+        })
+    }
+}
+
 export {
     sendOtp,
-    verifyOtpAndLogin
+    verifyOtpAndLogin,
+    createUserAndToken
 }
