@@ -1,5 +1,6 @@
 import prisma from "../../configs/prisma";
 import AppError from "../../errors/AppError";
+import logger from "../../configs/logger";
 import type { Prisma, Dentist } from "../../generated/prisma";
 import { getPaginationParams, buildMeta } from "../../utils/pagination";
 import type * as dentistDto from "./dentist.dto";
@@ -81,7 +82,7 @@ async function listDentists(query: dentistDto.DentistListQueryDto, isAdmin: bool
 
     if (query.specialty) where.specialty = query.specialty;
     if (query.minYearsOfExperience !== undefined) {
-        where.yearsOfExperience = { gte: query.minYearsOfExperience };
+        where.yearsOfExperience = { gte: Number(query.minYearsOfExperience) };
     }
     if (query.search) {
         where.clinicName = { contains: query.search, mode: "insensitive" };
@@ -198,6 +199,37 @@ async function restoreDentistProfileIfSuspended(userId: string, tx: Prisma.Trans
     });
 }
 
+async function reviewDentistVerification(dentistId: string, adminId: string, body: dentistDto.AdminReviewDentistVerificationDto) {
+    const dentist = await findDentistByIdOrThrow(dentistId);
+
+    if (dentist.verificationStatus !== "PENDING") {
+        throw new AppError("this dentist profile is not awaiting verification", 409);
+    }
+
+    const result = await prisma.dentist.updateMany({
+        where: { id: dentistId, verificationStatus: "PENDING" },
+        data: {
+            verificationStatus: body.status,
+            rejectionReason: body.status === "REJECTED" ? body.rejectionReason : null
+        }
+    });
+
+    if (result.count === 0) {
+        throw new AppError("this dentist profile is not awaiting verification", 409);
+    }
+
+    const updated = await findDentistByIdOrThrow(dentistId);
+
+    logger.info({
+        message: "dentist verification reviewed",
+        adminId,
+        dentistId,
+        decision: body.status
+    });
+
+    return toSelfDto(updated);
+}
+
 export {
     findDentistByIdOrThrow,
     findDentistByUserIdOrThrow,
@@ -209,5 +241,6 @@ export {
     suspendDentistProfileIfExists,
     restoreDentistProfileIfSuspended,
     toPublicDto,
-    toSelfDto
+    toSelfDto,
+    reviewDentistVerification
 };

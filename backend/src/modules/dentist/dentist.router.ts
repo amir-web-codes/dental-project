@@ -22,4 +22,13 @@ router.post(
     dentistController.requestVerification
 );
 
+router.patch(
+    "/admin/:id/verification",
+    checkToken,
+    checkRole(["ADMIN"]),
+    limiters.adminVerificationLimiter,
+    validator(validations.reviewDentistVerificationSchema),
+    dentistController.reviewVerification
+);
+
 export default router;

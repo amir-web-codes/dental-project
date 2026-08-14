@@ -22,7 +22,7 @@ router.get("/admin/requests/get-all", checkToken, checkRole(["ADMIN"]), validato
 
 router.route("/admin/requests/:id")
     .get(checkToken, checkRole(["ADMIN"]), userController.getRequestById)
-    .patch(checkToken, checkRole(["ADMIN"]), validator(validations.requestIdParamSchema, "params"), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
+    .patch(checkToken, checkRole(["ADMIN"]), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
 
 
 export default router;

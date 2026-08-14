@@ -2,10 +2,10 @@ import type { Request, Response } from "express";
 import * as dentistService from "./dentist.service";
 import type { DentistListQueryDto } from "./dentist.dto";
 import checkRequest from "../../utils/checkRequest";
+import validateId from "../../utils/validateId";
 
 async function listDentists(req: Request, res: Response) {
-    const user = checkRequest(req)
-    const isAdmin = user.role === "ADMIN";
+    const isAdmin = req.user?.role === "ADMIN";
     const query = req.query as unknown as DentistListQueryDto;
 
     const { data, meta } = await dentistService.listDentists(query, isAdmin);
@@ -51,9 +51,22 @@ async function requestVerification(req: Request, res: Response) {
     });
 }
 
+async function reviewVerification(req: Request, res: Response) {
+    const id = validateId(req)
+    const user = checkRequest(req)
+
+    const data = await dentistService.reviewDentistVerification(id, user.id, req.body);
+    res.json({
+        success: true,
+        message: "dentist verification reviewed successfully",
+        data
+    });
+}
+
 export {
     listDentists,
     getMyProfile,
     updateMyProfile,
-    requestVerification
+    requestVerification,
+    reviewVerification
 };

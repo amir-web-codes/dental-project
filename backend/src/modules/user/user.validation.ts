@@ -38,15 +38,10 @@ const listRequestsSchema = paginationSchema.extend({
     userId: z.string().cuid().optional()
 });
 
-const requestIdParamSchema = z.object({
-    id: z.string().cuid()
-});
-
 export {
     updateProfileSchema,
     includeDeletedSchema,
     createRequestSchema,
     reviewRequestSchema,
     listRequestsSchema,
-    requestIdParamSchema
 };
