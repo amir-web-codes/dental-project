@@ -10,6 +10,7 @@ router.get("/get-all", optionalCheckToken, validator(validations.listDentistsSch
 
 router.route("/me")
     .get(checkToken, checkUserBan, checkRole(["DENTIST"]), dentistController.getMyProfile)
+    .patch(checkToken, checkUserBan, checkRole(["DENTIST"]), validator(validations.updateSelfDentistSchema), dentistController.updateMyProfile);
 
 router.post(
     "/me/request-verification",
