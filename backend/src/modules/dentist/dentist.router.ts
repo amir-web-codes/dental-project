@@ -8,4 +8,14 @@ import * as limiters from "./dentist.rateLimiter";
 
 router.get("/get-all", optionalCheckToken, validator(validations.listDentistsSchema, "query"), dentistController.listDentists);
 
+router.post(
+    "/me/request-verification",
+    checkToken,
+    checkUserBan,
+    checkRole(["DENTIST"]),
+    checkProfileCompleted,
+    limiters.requestVerificationLimiter,
+    dentistController.requestVerification
+);
+
 export default router;
