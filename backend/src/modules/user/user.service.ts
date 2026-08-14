@@ -191,20 +191,6 @@ async function findRequestByIdOrThrow(id: string) {
     return request;
 }
 
-export {
-    findUserByIdOrThrow,
-    toProfileDto,
-    toAdminDetailDto,
-    getUserProfile,
-    updateUserProfile,
-    getUserDetailForAdmin,
-    deleteUserById,
-    createRequest,
-    listRequests,
-    findRequestByIdOrThrow,
-    reviewRequest
-};
-
 async function reviewRequest(requestId: string, adminId: string, body: userDto.RequestReviewDto) {
     const request = await findRequestByIdOrThrow(requestId);
 
@@ -255,3 +241,17 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
 
     return updated;
 }
+
+export {
+    findUserByIdOrThrow,
+    toProfileDto,
+    toAdminDetailDto,
+    getUserProfile,
+    updateUserProfile,
+    getUserDetailForAdmin,
+    deleteUserById,
+    createRequest,
+    listRequests,
+    findRequestByIdOrThrow,
+    reviewRequest
+};

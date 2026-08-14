@@ -20,5 +20,9 @@ router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted,
 
 router.get("/requests/get-all", checkToken, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
 
+router.route("/requests/:id")
+    // .get()
+    .patch(checkToken, checkRole(["ADMIN"]), validator(validations.requestIdParamSchema, "params"), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
+
 
 export default router;
