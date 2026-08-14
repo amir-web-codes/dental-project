@@ -45,10 +45,16 @@ interface DentistListQueryDto {
     verificationStatus?: DentistVerificationStatus;
 }
 
+interface AdminReviewDentistVerificationDto {
+    status: "VERIFIED" | "REJECTED";
+    rejectionReason?: string;
+}
+
 export {
     DentistUserSummary,
     DentistPublicDto,
     DentistSelfDto,
     DentistUpdateSelfDto,
-    DentistListQueryDto
+    DentistListQueryDto,
+    AdminReviewDentistVerificationDto
 };
