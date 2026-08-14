@@ -33,7 +33,16 @@ const updateSelfDentistSchema = z.object({
     message: "at least one field must be provided"
 });
 
+const reviewDentistVerificationSchema = z.object({
+    status: z.enum(["VERIFIED", "REJECTED"]),
+    rejectionReason: z.string().trim().min(3).max(500).optional()
+}).refine((data) => (data.status === "REJECTED" ? Boolean(data.rejectionReason) : true), {
+    message: "rejectionReason is required when rejecting",
+    path: ["rejectionReason"]
+});
+
 export {
     listDentistsSchema,
-    updateSelfDentistSchema
+    updateSelfDentistSchema,
+    reviewDentistVerificationSchema
 };
