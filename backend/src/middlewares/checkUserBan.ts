@@ -4,7 +4,7 @@ import AppError from "../errors/AppError";
 import logger from "../configs/logger";
 import loadState from "../utils/cache/loadUserState"
 import { invalidateUserStateCache } from "../utils/cache/userState.cache";
-// import { restoreDentistProfileIfSuspended } from "../modules/user/dentist/dentist.service";
+import { restoreDentistProfileIfSuspended } from "../modules/dentist/dentist.service";
 
 export default async function checkUserBan(req: Request, res: Response, next: NextFunction) {
     const userId = req.user?.id;
@@ -45,7 +45,7 @@ export default async function checkUserBan(req: Request, res: Response, next: Ne
                 }
             });
 
-            // await restoreDentistProfileIfSuspended(userId, tx);
+            await restoreDentistProfileIfSuspended(userId, tx);
         });
 
         await invalidateUserStateCache(userId);
