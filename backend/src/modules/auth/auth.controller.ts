@@ -55,10 +55,28 @@ async function verifyOtp(req: Request, res: Response): Promise<void> {
     })
 }
 
+async function logOut(req: Request, res: Response) {
+    const user = checkRequest(req)
+    const deviceId = req.cookies.deviceId
 
+    if (!deviceId) {
+        throw new AppError("device session not found", 403)
+    }
+
+    await userService.revokeUserToken(user.id, deviceId)
+
+    res.clearCookie("refreshToken", {
+        path: "/auth/refresh-token",
+    })
+
+    res.json({
+        success: true,
+        message: "user logged out successfully, please remove access token"
+    })
+}
 
 export {
     sendOtp,
     verifyOtp,
-    // logout
+    logOut
 }

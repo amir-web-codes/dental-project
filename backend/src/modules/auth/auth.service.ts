@@ -229,5 +229,6 @@ async function revokeUserToken(userId: string, deviceId: string): Promise<void> 
 export {
     sendOtp,
     verifyOtpAndLogin,
-    createUserAndToken
+    createUserAndToken,
+    revokeUserToken
 }
