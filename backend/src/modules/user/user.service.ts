@@ -3,6 +3,9 @@ import AppError from "../../errors/AppError";
 import { Prisma, User } from "../../generated/prisma";
 import { invalidateUserStateCache } from "../../utils/cache/userState.cache";
 import * as userDto from "./user.dto";
+import logger from "../../configs/logger";
+import { getPaginationParams, buildMeta } from "../../utils/pagination";
+import { ensureDentistProfile } from "../dentist/dentist.service";
 
 async function findUserByIdOrThrow(id: string): Promise<User> {
 
@@ -123,6 +126,71 @@ async function deleteUserById(id: string, userId: string) {
     }
 }
 
+async function createRequest(userId: string, body: userDto.RequestCreateDto) {
+    const user = await findUserByIdOrThrow(userId);
+
+    if (user.role === body.requestedRole) {
+        throw new AppError("you already have this role", 409);
+    }
+
+    const existingOpen = await prisma.request.findFirst({
+        where: { userId, status: "OPEN" }
+    });
+
+    if (existingOpen) {
+        throw new AppError("you already have an open request, please wait for it to be reviewed", 409);
+    }
+
+    try {
+        return await prisma.request.create({
+            data: {
+                userId,
+                requestedRole: body.requestedRole,
+                reason: body.reason
+            }
+        });
+    } catch (err) {
+
+        if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2010") {
+            throw new AppError("you already have an open request, please wait for it to be reviewed", 409);
+        }
+        throw err;
+    }
+}
+
+async function listRequests(query: userDto.RequestListQueryDto) {
+    const { page, limit, skip } = getPaginationParams(query);
+
+    const where: Prisma.RequestWhereInput = {};
+    const hasFilters = Boolean(query.status || query.requestedRole || query.userId);
+
+    if (!hasFilters) {
+        where.status = "OPEN";
+    } else {
+        if (query.status) where.status = query.status;
+        if (query.requestedRole) where.requestedRole = query.requestedRole;
+        if (query.userId) where.userId = query.userId;
+    }
+
+    const [items, totalItems] = await prisma.$transaction([
+        prisma.request.findMany({ where, skip, take: limit, orderBy: { createdAt: "desc" } }),
+        prisma.request.count({ where })
+    ]);
+
+    return {
+        data: items,
+        meta: buildMeta(page, limit, totalItems)
+    };
+}
+
+async function findRequestByIdOrThrow(id: string) {
+    const request = await prisma.request.findUnique({ where: { id } });
+    if (!request) {
+        throw new AppError("request not found", 404);
+    }
+    return request;
+}
+
 export {
     findUserByIdOrThrow,
     toProfileDto,
@@ -130,5 +198,60 @@ export {
     getUserProfile,
     updateUserProfile,
     getUserDetailForAdmin,
-    deleteUserById
+    deleteUserById,
+    createRequest,
+    listRequests,
+    findRequestByIdOrThrow,
+    reviewRequest
 };
+
+async function reviewRequest(requestId: string, adminId: string, body: userDto.RequestReviewDto) {
+    const request = await findRequestByIdOrThrow(requestId);
+
+    if (request.status !== "OPEN") {
+        throw new AppError("this request has already been reviewed", 409);
+    }
+
+    await findUserByIdOrThrow(request.userId);
+
+    const updated = await prisma.$transaction(async (tx) => {
+        const updateResult = await tx.request.updateMany({
+            where: { id: requestId, status: "OPEN" },
+            data: {
+                status: body.status,
+                reviewedById: adminId,
+                reviewedAt: new Date(),
+                rejectionReason: body.status === "REJECTED" ? body.rejectionReason : null
+            }
+        });
+
+        if (updateResult.count === 0) {
+            throw new AppError("this request has already been reviewed", 409);
+        }
+
+        if (body.status === "APPROVED") {
+            await tx.user.update({
+                where: { id: request.userId },
+                data: { role: request.requestedRole }
+            });
+
+            if (request.requestedRole === "DENTIST") {
+                await ensureDentistProfile(request.userId, tx);
+            }
+        }
+
+        return tx.request.findUniqueOrThrow({ where: { id: requestId } });
+    });
+
+    await invalidateUserStateCache(request.userId);
+
+    logger.info({
+        message: "role request reviewed",
+        requestId,
+        adminId,
+        targetUserId: request.userId,
+        decision: body.status
+    });
+
+    return updated;
+}

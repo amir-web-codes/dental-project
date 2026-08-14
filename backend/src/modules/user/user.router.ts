@@ -1,9 +1,10 @@
 import express from "express";
 const router = express.Router();
 
-import { checkRole, checkToken, checkUserBan, validator } from "../../middlewares";
+import { checkRole, checkToken, checkUserBan, checkProfileCompleted, validator } from "../../middlewares";
 import * as validations from "./user.validation";
 import * as userController from "./user.controller";
+import * as limiters from "./user.limiter"
 
 router.route("/me")
     .get(checkToken, userController.getUserProfile)
@@ -12,5 +13,9 @@ router.route("/me")
 router.route("/admin/:id")
     .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
     .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), userController.deleteUserById)
+
+
+
+router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
 export default router;

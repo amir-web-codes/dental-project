@@ -8,7 +8,8 @@ export const paginationSchema = z.object({
 export type PaginationQuery = z.infer<typeof paginationSchema>;
 
 export function getPaginationParams(query: { page: number; limit: number }) {
-    const { page, limit } = query;
+    const page = Number(query.page || 1);
+    const limit = Number(query.limit || 20);
     const skip = (page - 1) * limit;
     return { page, limit, skip };
 }
