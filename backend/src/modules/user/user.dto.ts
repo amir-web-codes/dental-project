@@ -1,4 +1,4 @@
-import type { Role, UserStatus, Gender } from "../../generated/prisma";
+import type { Role, UserStatus, Gender, RequestStatus } from "../../generated/prisma";
 import type { Prisma } from "../../generated/prisma"
 
 interface IncludedUser {
@@ -64,10 +64,31 @@ type AdminUser = Prisma.UserGetPayload<{
     include: typeof UserInclude
 }>;
 
+interface RequestCreateDto {
+    requestedRole: "DENTIST" | "ADMIN";
+    reason?: string;
+}
+
+interface RequestReviewDto {
+    status: "APPROVED" | "REJECTED";
+    rejectionReason?: string;
+}
+
+interface RequestListQueryDto {
+    page: number;
+    limit: number;
+    status?: RequestStatus;
+    requestedRole?: Role;
+    userId?: string;
+}
+
 export {
     UserProfileDto,
     UserUpdateProfileDto,
     AdminUserDetailDto,
     UserInclude,
-    AdminUser
+    AdminUser,
+    RequestCreateDto,
+    RequestReviewDto,
+    RequestListQueryDto
 };
