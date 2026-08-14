@@ -14,10 +14,10 @@ async function sendOtp(req: Request, res: Response): Promise<void> {
 }
 
 async function verifyOtp(req: Request, res: Response): Promise<void> {
-    // await userService.verifyOtpAndLogin({
-    //     phone: req.body.phone,
-    //     otp: req.body.otp
-    // })
+    await userService.verifyOtpAndLogin({
+        phone: req.body.phone,
+        otp: req.body.otp
+    })
 
     const userAgent = req.headers["user-agent"]
 
@@ -30,7 +30,7 @@ async function verifyOtp(req: Request, res: Response): Promise<void> {
         deviceId = randomUUID()
     }
 
-    const { accessToken, refreshToken } = await userService.createUserAndToken(req.body.phone, userAgent, deviceId)
+    const { user, accessToken, refreshToken } = await userService.createUserAndToken(req.body.phone, userAgent, deviceId)
 
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
@@ -50,7 +50,8 @@ async function verifyOtp(req: Request, res: Response): Promise<void> {
     res.json({
         success: true,
         message: "OTP verified successfully",
-        accessToken
+        accessToken,
+        user
     })
 }
 

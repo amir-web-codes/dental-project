@@ -112,32 +112,37 @@ async function verifyOtpAndLogin(data: { phone: string; otp: string; }): Promise
 }
 
 async function createUserAndToken(phone: string, userAgent: string, deviceId: string): Promise<authDto.UserAndTokens> {
-    let createdUser = await prisma.user.findUnique({
+    let dbUser = await prisma.user.findUnique({
         where: {
             phone
         }
-    })
+    });
 
-    if (!createdUser) {
-        createdUser = await prisma.user.create({
+    if (!dbUser) {
+        dbUser = await prisma.user.create({
             data: {
                 phone
+            }
+        });
+    } else {
+        dbUser = await prisma.user.update({
+            where: { id: dbUser.id },
+            data: {
+                lastLoginAt: new Date()
             }
         });
     }
 
     const userToken = {
-        id: createdUser.id,
-        role: createdUser.role,
-        status: createdUser.status
+        id: dbUser.id,
+        role: dbUser.role,
+        status: dbUser.status
     }
 
     const { accessToken, refreshToken } = await createTokens(userToken, userAgent, deviceId);
-    const user = toProfileDto(createdUser)
+    const user = toProfileDto(dbUser)
 
-    console.log(user)
-
-    return { accessToken, refreshToken }
+    return { user, accessToken, refreshToken }
 }
 
 async function createTokens(user: authDto.UserForToken, userAgent: string, deviceId: string): Promise<authDto.Tokens> {

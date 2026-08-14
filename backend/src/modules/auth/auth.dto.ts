@@ -1,6 +1,7 @@
-import type { Role, UserStatus } from "../../generated/prisma";
+import type { Role, UserStatus, User } from "../../generated/prisma";
+import type { UserProfileDto } from "../user/user.dto";
 
-type CreateUserToken = {
+type UserForToken = {
     id: string,
     role: Role,
     status: UserStatus
@@ -11,7 +12,12 @@ type Tokens = {
     refreshToken: string
 }
 
+type UserAndTokens = Tokens & {
+    user: UserProfileDto
+}
+
 export {
-    CreateUserToken,
-    Tokens
+    UserForToken,
+    Tokens,
+    UserAndTokens
 }
