@@ -16,7 +16,7 @@ export default async function checkUserBan(req: Request, res: Response, next: Ne
     const state = await loadState(userId);
 
     if (state.status === "DELETED") {
-        throw new AppError("this account no longer exists", 403);
+        throw new AppError("this account no longer exists(DELETED)", 403);
     }
 
     if (state.status === "BANNED") {

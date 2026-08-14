@@ -14,10 +14,10 @@ async function sendOtp(req: Request, res: Response): Promise<void> {
 }
 
 async function verifyOtp(req: Request, res: Response): Promise<void> {
-    await userService.verifyOtpAndLogin({
-        phone: req.body.phone,
-        otp: req.body.otp
-    })
+    // await userService.verifyOtpAndLogin({
+    //     phone: req.body.phone,
+    //     otp: req.body.otp
+    // })
 
     const userAgent = req.headers["user-agent"]
 

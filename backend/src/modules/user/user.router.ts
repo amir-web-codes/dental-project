@@ -10,7 +10,7 @@ router.route("/me")
     .patch(checkToken, checkUserBan, validator(validations.updateProfileSchema, "body"), userController.updateUserProfile);
 
 router.route("/admin/:id")
-    .get(checkToken, checkUserBan, checkRole(["admin"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
-// .detele(checkToken, checkUserBan, checkRole(["admin"]), use)
+    .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
+    .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), userController.deleteUserById)
 
 export default router;

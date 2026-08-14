@@ -38,8 +38,21 @@ async function getUserDetailForAdmin(req: Request, res: Response): Promise<void>
     })
 }
 
+async function deleteUserById(req: Request, res: Response) {
+    const id = validateId(req)
+    const user = checkRequest(req)
+    const data = await userService.deleteUserById(id, user.id)
+
+    res.json({
+        success: true,
+        message: "user deleted successfully",
+        data
+    })
+}
+
 export {
     getUserProfile,
     updateUserProfile,
-    getUserDetailForAdmin
+    getUserDetailForAdmin,
+    deleteUserById
 };

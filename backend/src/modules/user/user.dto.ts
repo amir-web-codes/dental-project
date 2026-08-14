@@ -36,6 +36,7 @@ interface AdminUserDetailDto extends UserProfileDto {
     banReason: string | null;
     unbannedAt: Date | null;
     unbannedBy: IncludedUser | null,
+    lastLoginAt: Date,
     createdAt: Date;
     updatedAt: Date;
 }

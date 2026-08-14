@@ -1,6 +1,6 @@
 import prisma from "../../configs/prisma";
 import AppError from "../../errors/AppError";
-import type { Prisma, User } from "../../generated/prisma";
+import { Prisma, User } from "../../generated/prisma";
 import { invalidateUserStateCache } from "../../utils/cache/userState.cache";
 import * as userDto from "./user.dto";
 
@@ -64,6 +64,7 @@ function toAdminDetailDto(user: userDto.AdminUser): userDto.AdminUserDetailDto {
         banReason: user.banReason,
         unbannedAt: user.unbannedAt,
         unbannedBy: user.unbannedBy,
+        lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
     };
@@ -100,11 +101,34 @@ async function updateUserProfile(id: string, body: userDto.UserUpdateProfileDto)
     return toProfileDto(updated);
 }
 
+async function deleteUserById(id: string, userId: string) {
+    try {
+        return await prisma.user.update({
+            where: {
+                id,
+                role: { not: "ADMIN" }
+            },
+            data: {
+                status: "DELETED",
+                deletedAt: new Date(),
+                deletedById: userId
+            }
+        })
+    } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+            throw new AppError("user not found or was an admin", 404)
+        }
+
+        throw err
+    }
+}
+
 export {
     findUserByIdOrThrow,
     toProfileDto,
     toAdminDetailDto,
     getUserProfile,
     updateUserProfile,
-    getUserDetailForAdmin
+    getUserDetailForAdmin,
+    deleteUserById
 };

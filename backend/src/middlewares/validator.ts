@@ -14,7 +14,9 @@ export default function validator(schema: ZodType, source: "body" | "params" | "
             throw new AppError("invalid inputs", 400, result.error.issues)
         }
 
-        req[source] = result.data;
+        if (source !== "query") {
+            req[source] = result.data;
+        }
 
         next();
     };
