@@ -18,10 +18,10 @@ router.route("/admin/:id")
 
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
-router.get("/requests/get-all", checkToken, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
+router.get("/admin/requests/get-all", checkToken, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
 
-router.route("/requests/:id")
-    // .get()
+router.route("/admin/requests/:id")
+    .get(checkToken, checkRole(["ADMIN"]), userController.getRequestById)
     .patch(checkToken, checkRole(["ADMIN"]), validator(validations.requestIdParamSchema, "params"), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
 
 

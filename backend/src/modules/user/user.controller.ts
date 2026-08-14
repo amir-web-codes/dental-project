@@ -88,6 +88,17 @@ async function reviewRequest(req: Request, res: Response) {
     });
 }
 
+async function getRequestById(req: Request, res: Response) {
+    const id = validateId(req)
+    const data = await userService.findRequestByIdOrThrow(id)
+
+    res.json({
+        success: true,
+        message: "request fetched successfully",
+        data
+    })
+}
+
 export {
     getUserProfile,
     updateUserProfile,
@@ -95,5 +106,6 @@ export {
     deleteUserById,
     createRequest,
     listRequests,
-    reviewRequest
+    reviewRequest,
+    getRequestById
 };
