@@ -18,6 +18,9 @@ router.patch("/:id/role", limiters.adminSensitiveActionLimiter, validator(valida
 
 router.patch("/:id/ban", limiters.adminSensitiveActionLimiter, validator(validations.banUserSchema), userController.banUser);
 
+router.patch("/:id/unban", limiters.adminSensitiveActionLimiter, userController.unbanUser);
+
+
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
 router.get("/admin/requests/get-all", checkToken, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
