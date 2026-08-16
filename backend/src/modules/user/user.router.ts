@@ -16,6 +16,7 @@ router.route("/admin/:id")
 
 router.patch("/:id/role", limiters.adminSensitiveActionLimiter, validator(validations.changeRoleSchema), userController.changeUserRole);
 
+router.patch("/:id/ban", limiters.adminSensitiveActionLimiter, validator(validations.banUserSchema), userController.banUser);
 
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
