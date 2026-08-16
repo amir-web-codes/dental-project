@@ -12,7 +12,14 @@ const reviewRequestLimiter = createKeyedLimiter({
     message: "too many review actions, slow down"
 });
 
+const adminSensitiveActionLimiter = createKeyedLimiter({
+    windowMs: 1000 * 60 * 10,
+    max: 20,
+    message: "too many admin actions, slow down"
+})
+
 export {
     createRequestLimiter,
-    reviewRequestLimiter
+    reviewRequestLimiter,
+    adminSensitiveActionLimiter
 }
