@@ -100,8 +100,8 @@ async function getRequestById(req: Request, res: Response) {
 }
 
 async function changeUserRole(req: Request, res: Response) {
-    const user = checkRequest(req)
     const id = validateId(req)
+    const user = checkRequest(req)
 
     const data = await userService.changeUserRole(id, user.id, req.body);
 

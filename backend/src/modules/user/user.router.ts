@@ -14,6 +14,7 @@ router.route("/admin/:id")
     .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
     .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), userController.deleteUserById)
 
+router.patch("/:id/role", limiters.adminSensitiveActionLimiter, validator(validations.changeRoleSchema), userController.changeUserRole);
 
 
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
@@ -23,6 +24,5 @@ router.get("/admin/requests/get-all", checkToken, checkRole(["ADMIN"]), validato
 router.route("/admin/requests/:id")
     .get(checkToken, checkRole(["ADMIN"]), userController.getRequestById)
     .patch(checkToken, checkRole(["ADMIN"]), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
-
 
 export default router;
