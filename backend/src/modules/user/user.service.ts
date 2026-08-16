@@ -1,15 +1,16 @@
 import prisma from "../../configs/prisma";
 import AppError from "../../errors/AppError";
-import { Prisma, User } from "../../generated/prisma";
+import { Prisma } from "../../generated/prisma";
+import type { Role, User, UserStatus } from "../../generated/prisma";
 import { invalidateUserStateCache } from "../../utils/cache/userState.cache";
 import * as userDto from "./user.dto";
 import logger from "../../configs/logger";
 import { getPaginationParams, buildMeta } from "../../utils/pagination";
-import { ensureDentistProfile } from "../dentist/dentist.service";
+import { ensureDentistProfile, suspendDentistProfileIfExists, restoreDentistProfileIfSuspended } from "../dentist/dentist.service";
 
-async function findUserByIdOrThrow(id: string): Promise<User> {
+async function findUserByIdOrThrow(id: string, tx: Prisma.TransactionClient = prisma): Promise<User> {
 
-    const user = await prisma.user.findUnique({
+    const user = await tx.user.findUnique({
         where: {
             id
         }
@@ -22,7 +23,7 @@ async function findUserByIdOrThrow(id: string): Promise<User> {
     return user;
 }
 
-async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boolean } = {}): Promise<userDto.AdminUserDetailDto> {
+async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boolean } = {}, tx: Prisma.TransactionClient = prisma): Promise<userDto.AdminUserDetailDto> {
     const query: Prisma.UserWhereInput = { id }
     const include = userDto.UserInclude
 
@@ -30,7 +31,7 @@ async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boo
         query.status = { not: "DELETED" };
     }
 
-    const user = await prisma.user.findFirst({
+    const user = await tx.user.findFirst({
         where: query,
         include
     })
@@ -52,6 +53,9 @@ function toProfileDto(user: User): userDto.UserProfileDto {
         gender: user.gender,
         role: user.role,
         status: user.status,
+        bannedAt: user.bannedAt,
+        banExpiresAt: user.banExpiresAt,
+        banReason: user.banReason,
         profileCompleted: user.profileCompleted
     };
 }
@@ -242,6 +246,169 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
     return updated;
 }
 
+function assertNotAdminAndNotSelf(targetRole: Role, actorId: string, targetId: string, targetStatus?: UserStatus) {
+    if (targetRole === "ADMIN") {
+        throw new AppError("you cannot perform this action on another admin", 403);
+    }
+    if (actorId === targetId) {
+        throw new AppError("you cannot perform this action on your own account", 403);
+    }
+    if (targetStatus === "DELETED") {
+        throw new AppError("you cannot perfom this action to a deleted user", 403)
+    }
+}
+
+async function changeUserRole(targetUserId: string, adminId: string, body: userDto.AdminChangeRoleDto): Promise<userDto.AdminUserDetailDto> {
+    const updated = await prisma.$transaction(async (tx) => {
+
+        const target = await findUserByIdOrThrow(targetUserId, tx);
+
+        assertNotAdminAndNotSelf(target.role, adminId, targetUserId, target.status);
+
+        if (target.role === body.role) {
+            throw new AppError("user already has this role", 409);
+        }
+
+        const newUser = await tx.user.update({
+            where: { id: targetUserId },
+            data: { role: body.role }
+        });
+
+        if (newUser.role === "DENTIST" && newUser.status === "ACTIVE") {
+            await ensureDentistProfile(targetUserId, tx);
+        }
+
+        return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
+    });
+
+    await invalidateUserStateCache(targetUserId);
+
+    logger.info({
+        message: "user role changed by admin",
+        adminId,
+        targetUserId,
+        newRole: body.role
+    });
+
+    return updated;
+}
+
+async function banUser(targetUserId: string, adminId: string, body: userDto.AdminBanUserDto) {
+    const banExpiresAt = body.banDays ? new Date(Date.now() + body.banDays * 24 * 60 * 60 * 1000) : null;
+    const banReason = body.banReason ?? "no reason";
+
+    const updated = await prisma.$transaction(async (tx) => {
+        const target = await findUserByIdOrThrow(targetUserId, tx);
+
+        assertNotAdminAndNotSelf(target.role, adminId, targetUserId, target.status);
+
+        const newUser = await tx.user.update({
+            where: { id: targetUserId },
+            data: {
+                status: "BANNED",
+                bannedAt: new Date(),
+                bannedById: adminId,
+                banExpiresAt,
+                banReason,
+                unbannedAt: null,
+                unbannedById: null
+            }
+        });
+
+        if (newUser.role === "DENTIST") {
+            await suspendDentistProfileIfExists(targetUserId, tx);
+        }
+
+
+        return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
+    });
+
+    await invalidateUserStateCache(targetUserId);
+
+    logger.info({
+        message: "user banned by admin",
+        adminId,
+        targetUserId,
+        permanent: banExpiresAt === null,
+        banExpiresAt,
+        banReason
+    });
+
+    return updated;
+}
+
+async function unbanUser(targetUserId: string, adminId: string) {
+    const updated = await prisma.$transaction(async (tx) => {
+        const target = await findUserByIdOrThrow(targetUserId, tx);
+
+        if (target.status !== "BANNED") {
+            throw new AppError("this user is not banned", 409);
+        }
+        if (adminId === targetUserId) {
+            throw new AppError("you cannot perform this action on your own account", 403);
+        }
+
+        const newUser = await tx.user.update({
+            where: { id: targetUserId },
+            data: {
+                status: "ACTIVE",
+                bannedAt: null,
+                bannedById: null,
+                banExpiresAt: null,
+                banReason: null,
+                unbannedAt: new Date(),
+                unbannedById: adminId
+            }
+        });
+
+        if (newUser.role === "DENTIST") {
+            await restoreDentistProfileIfSuspended(targetUserId, tx);
+        }
+
+        return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
+    });
+
+    await invalidateUserStateCache(targetUserId);
+
+    logger.info({ message: "user unbanned by admin", adminId, targetUserId });
+
+    return updated;
+}
+
+async function deleteUser(targetUserId: string, adminId: string) {
+    const updated = await prisma.$transaction(async (tx) => {
+
+        const target = await findUserByIdOrThrow(targetUserId, tx);
+
+        assertNotAdminAndNotSelf(target.role, adminId, targetUserId);
+
+        if (target.status === "DELETED") {
+            throw new AppError("this user has already been deleted", 409);
+        }
+
+        const newUser = await tx.user.update({
+            where: { id: targetUserId },
+            data: {
+                status: "DELETED",
+                deletedAt: new Date(),
+                deletedById: adminId
+            }
+        });
+
+        if (newUser.role === "DENTIST") {
+            await suspendDentistProfileIfExists(targetUserId, tx);
+        }
+
+        return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
+    });
+
+    await invalidateUserStateCache(targetUserId);
+
+    logger.info({ message: "user deleted by admin", adminId, targetUserId });
+
+    return updated;
+}
+
 export {
     findUserByIdOrThrow,
     toProfileDto,
@@ -253,5 +420,9 @@ export {
     createRequest,
     listRequests,
     findRequestByIdOrThrow,
-    reviewRequest
+    reviewRequest,
+    changeUserRole,
+    banUser,
+    unbanUser,
+    deleteUser
 };
