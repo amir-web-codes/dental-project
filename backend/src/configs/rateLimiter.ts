@@ -1,13 +1,21 @@
 import AppError from "../errors/AppError"
 import type { Request, Response, NextFunction } from "express"
 import rateLimit from "express-rate-limit"
+import createKeyedLimiter from "../utils/rateLimiter";
 
-export default rateLimit({
+const globalRateLimiter = createKeyedLimiter({
     windowMs: 1000 * 60 * 10,
     max: 300,
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req: Request, res: Response, next: NextFunction) => {
-        throw new AppError("you're sending too many requests, slow down", 429)
-    }
-})
+    message: "you're sending too many requests, slow down"
+});
+
+const adminVerificationLimiter = createKeyedLimiter({
+    windowMs: 1000 * 60 * 10,
+    max: 50,
+    message: "too many verification actions, slow down"
+});
+
+export {
+    globalRateLimiter,
+    adminVerificationLimiter
+}

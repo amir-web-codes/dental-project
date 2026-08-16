@@ -17,6 +17,9 @@ interface UserProfileDto {
     gender: Gender | null;
     role: Role;
     status: UserStatus;
+    bannedAt: Date | null;
+    banExpiresAt: Date | null;
+    banReason: string | null;
     profileCompleted: boolean;
 }
 
@@ -82,6 +85,15 @@ interface RequestListQueryDto {
     userId?: string;
 }
 
+interface AdminChangeRoleDto {
+    role: Role;
+}
+
+interface AdminBanUserDto {
+    banDays?: number;
+    banReason?: string;
+}
+
 export {
     UserProfileDto,
     UserUpdateProfileDto,
@@ -90,5 +102,7 @@ export {
     AdminUser,
     RequestCreateDto,
     RequestReviewDto,
-    RequestListQueryDto
+    RequestListQueryDto,
+    AdminChangeRoleDto,
+    AdminBanUserDto
 };

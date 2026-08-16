@@ -99,6 +99,58 @@ async function getRequestById(req: Request, res: Response) {
     })
 }
 
+async function changeUserRole(req: Request, res: Response) {
+    const user = checkRequest(req)
+    const id = validateId(req)
+
+    const data = await userService.changeUserRole(id, user.id, req.body);
+
+    res.json({
+        success: true,
+        message: "user role changed successfully",
+        data
+    });
+}
+
+async function banUser(req: Request, res: Response) {
+    const user = checkRequest(req)
+    const id = validateId(req)
+
+    const data = await userService.banUser(id, user.id, req.body);
+
+    res.json({
+        success: true,
+        message: "user banned successfully",
+        data
+    });
+}
+
+async function unbanUser(req: Request, res: Response) {
+    const user = checkRequest(req)
+    const id = validateId(req)
+
+    const data = await userService.unbanUser(id, user.id);
+
+    res.json({
+        success: true,
+        message: "user unbanned successfully",
+        data
+    });
+}
+
+async function deleteUser(req: Request, res: Response) {
+    const user = checkRequest(req)
+    const id = validateId(req)
+
+    const data = await userService.deleteUser(id, user.id);
+
+    res.json({
+        success: true,
+        message: "user deleted successfully",
+        data
+    });
+}
+
 export {
     getUserProfile,
     updateUserProfile,
@@ -107,5 +159,9 @@ export {
     createRequest,
     listRequests,
     reviewRequest,
-    getRequestById
+    getRequestById,
+    changeUserRole,
+    banUser,
+    unbanUser,
+    deleteUser
 };
