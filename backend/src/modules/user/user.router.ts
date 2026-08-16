@@ -20,6 +20,8 @@ router.patch("/:id/ban", limiters.adminSensitiveActionLimiter, validator(validat
 
 router.patch("/:id/unban", limiters.adminSensitiveActionLimiter, userController.unbanUser);
 
+router.delete("/:id", limiters.adminSensitiveActionLimiter, userController.deleteUser);
+
 
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
