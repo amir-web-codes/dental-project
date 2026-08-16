@@ -38,10 +38,21 @@ const listRequestsSchema = paginationSchema.extend({
     userId: z.string().cuid().optional()
 });
 
+const changeRoleSchema = z.object({
+    role: z.enum(["USER", "DENTIST", "ADMIN"])
+});
+
+const banUserSchema = z.object({
+    banDays: z.coerce.number().int().min(1).max(3650).optional(),
+    banReason: z.string().trim().min(3).max(300).optional()
+});
+
 export {
     updateProfileSchema,
     includeDeletedSchema,
     createRequestSchema,
     reviewRequestSchema,
     listRequestsSchema,
+    changeRoleSchema,
+    banUserSchema
 };
