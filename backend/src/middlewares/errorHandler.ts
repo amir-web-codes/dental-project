@@ -14,6 +14,11 @@ async function errorHandler(err: unknown, req: Request, res: Response, next: Nex
         message = err.message;
         stack = err.stack;
         errors = err.errors;
+    } else if (err instanceof SyntaxError && "body" in err) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid JSON"
+        });
     } else if (err instanceof ZodError) {
         status = 400
         message = "invalid inputs"
