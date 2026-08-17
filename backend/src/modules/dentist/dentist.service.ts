@@ -4,6 +4,7 @@ import logger from "../../configs/logger";
 import type { Prisma, Dentist } from "../../generated/prisma";
 import { getPaginationParams, buildMeta } from "../../utils/pagination";
 import type * as dentistDto from "./dentist.dto";
+import PaginationDto from "../../types/pagination";
 
 type DentistWithUser = Dentist & { user: dentistDto.DentistUserSummary };
 
@@ -230,6 +231,30 @@ async function reviewDentistVerification(dentistId: string, adminId: string, bod
     return toSelfDto(updated);
 }
 
+async function getPendingProfiles(query: PaginationDto) {
+
+    const { page, limit, skip } = getPaginationParams(query);
+    const where: Prisma.DentistWhereInput = {
+        verificationStatus: "PENDING"
+    }
+
+    const [items, totalItems] = await prisma.$transaction([
+        prisma.dentist.findMany({
+            where,
+            include: { user: { select: userSummarySelect } },
+            skip,
+            take: limit,
+            orderBy: { createdAt: "desc" }
+        }),
+        prisma.dentist.count({ where })
+    ]);
+
+    return {
+        data: items.map(toPublicDto),
+        meta: buildMeta(page, limit, totalItems)
+    };
+}
+
 export {
     findDentistByIdOrThrow,
     findDentistByUserIdOrThrow,
@@ -242,5 +267,6 @@ export {
     restoreDentistProfileIfSuspended,
     toPublicDto,
     toSelfDto,
-    reviewDentistVerification
+    reviewDentistVerification,
+    getPendingProfiles
 };

@@ -3,10 +3,12 @@ const router = express.Router();
 
 import { checkToken, checkUserBan, checkRole, checkProfileCompleted, optionalCheckToken, validator } from "../../middlewares";
 import * as validations from "./dentist.validation";
+import { paginationSchema } from "../../utils/pagination";
 import * as dentistController from "./dentist.controller";
 import * as limiters from "./dentist.ratelimiter";
 
 router.get("/get-all", optionalCheckToken, validator(validations.listDentistsSchema, "query"), dentistController.listDentists);
+router.get("/admin/pending/get-all", checkToken, checkUserBan, checkRole(["admin"]), validator(paginationSchema, "query"), dentistController.getPendingProfiles)
 
 router.route("/me")
     .get(checkToken, checkUserBan, checkRole(["DENTIST"]), dentistController.getMyProfile)
@@ -25,6 +27,7 @@ router.post(
 router.patch(
     "/admin/:id/verification",
     checkToken,
+    checkUserBan,
     checkRole(["ADMIN"]),
     limiters.adminVerificationLimiter,
     validator(validations.reviewDentistVerificationSchema),

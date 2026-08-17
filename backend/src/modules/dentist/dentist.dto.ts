@@ -1,3 +1,4 @@
+import PaginationDto from "../../types/pagination";
 import type { DentalSpecialty, DentistVerificationStatus, DentistStatus } from "../../generated/prisma";
 
 interface DentistUserSummary {
@@ -35,9 +36,7 @@ interface DentistUpdateSelfDto {
     status?: "ACTIVE" | "INACTIVE";
 }
 
-interface DentistListQueryDto {
-    page: number;
-    limit: number;
+interface DentistListQueryDto extends PaginationDto {
     search?: string;
     specialty?: DentalSpecialty;
     minYearsOfExperience?: number;

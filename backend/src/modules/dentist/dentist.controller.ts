@@ -56,6 +56,7 @@ async function reviewVerification(req: Request, res: Response) {
     const user = checkRequest(req)
 
     const data = await dentistService.reviewDentistVerification(id, user.id, req.body);
+
     res.json({
         success: true,
         message: "dentist verification reviewed successfully",
@@ -63,10 +64,24 @@ async function reviewVerification(req: Request, res: Response) {
     });
 }
 
+async function getPendingProfiles(req: Request, res: Response) {
+    const query = req.query as unknown as DentistListQueryDto;
+
+    const { data, meta } = await dentistService.getPendingProfiles(query)
+
+    res.json({
+        success: true,
+        message: "pending profiles fetched successfully",
+        data,
+        meta
+    })
+}
+
 export {
     listDentists,
     getMyProfile,
     updateMyProfile,
     requestVerification,
-    reviewVerification
+    reviewVerification,
+    getPendingProfiles
 };
