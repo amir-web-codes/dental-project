@@ -1,3 +1,4 @@
+import PaginationDto from "../../types/pagination";
 import type { Role, UserStatus, Gender, RequestStatus } from "../../generated/prisma";
 import type { Prisma } from "../../generated/prisma"
 
@@ -77,9 +78,7 @@ interface RequestReviewDto {
     rejectionReason?: string;
 }
 
-interface RequestListQueryDto {
-    page: number;
-    limit: number;
+interface RequestListQueryDto extends PaginationDto {
     status?: RequestStatus;
     requestedRole?: Role;
     userId?: string;

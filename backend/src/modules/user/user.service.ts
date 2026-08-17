@@ -108,28 +108,6 @@ async function updateUserProfile(id: string, body: userDto.UserUpdateProfileDto)
     return toProfileDto(updated);
 }
 
-async function deleteUserById(id: string, userId: string) {
-    try {
-        return await prisma.user.update({
-            where: {
-                id,
-                role: { not: "ADMIN" }
-            },
-            data: {
-                status: "DELETED",
-                deletedAt: new Date(),
-                deletedById: userId
-            }
-        })
-    } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
-            throw new AppError("user not found or was an admin", 404)
-        }
-
-        throw err
-    }
-}
-
 async function createRequest(userId: string, body: userDto.RequestCreateDto) {
     const user = await findUserByIdOrThrow(userId);
 
@@ -274,6 +252,11 @@ async function changeUserRole(targetUserId: string, adminId: string, body: userD
             data: { role: body.role }
         });
 
+        // if user was dentist before role change
+        if (target.role === "DENTIST") {
+            await suspendDentistProfileIfExists(targetUserId, tx)
+        }
+
         if (newUser.role === "DENTIST" && newUser.status === "ACTIVE") {
             await ensureDentistProfile(targetUserId, tx);
         }
@@ -416,7 +399,6 @@ export {
     getUserProfile,
     updateUserProfile,
     getUserDetailForAdmin,
-    deleteUserById,
     createRequest,
     listRequests,
     findRequestByIdOrThrow,

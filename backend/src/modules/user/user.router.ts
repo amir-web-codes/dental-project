@@ -12,23 +12,22 @@ router.route("/me")
 
 router.route("/admin/:id")
     .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
-    .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), userController.deleteUserById)
+    .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, userController.deleteUser);
 
-router.patch("/:id/role", limiters.adminSensitiveActionLimiter, validator(validations.changeRoleSchema), userController.changeUserRole);
+router.patch("/admin/:id/role", checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, validator(validations.changeRoleSchema), userController.changeUserRole);
 
-router.patch("/:id/ban", limiters.adminSensitiveActionLimiter, validator(validations.banUserSchema), userController.banUser);
+router.patch("/admin/:id/ban", checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, validator(validations.banUserSchema), userController.banUser);
 
-router.patch("/:id/unban", limiters.adminSensitiveActionLimiter, userController.unbanUser);
+router.patch("/admin/:id/unban", checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, userController.unbanUser);
 
-router.delete("/:id", limiters.adminSensitiveActionLimiter, userController.deleteUser);
 
 
 router.post("/requests/create", checkToken, checkUserBan, checkProfileCompleted, limiters.createRequestLimiter, validator(validations.createRequestSchema), userController.createRequest);
 
-router.get("/admin/requests/get-all", checkToken, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
+router.get("/admin/requests/get-all", checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.listRequestsSchema, "query"), userController.listRequests);
 
 router.route("/admin/requests/:id")
-    .get(checkToken, checkRole(["ADMIN"]), userController.getRequestById)
-    .patch(checkToken, checkRole(["ADMIN"]), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
+    .get(checkToken, checkUserBan, checkRole(["ADMIN"]), userController.getRequestById)
+    .patch(checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.reviewRequestLimiter, validator(validations.reviewRequestSchema), userController.reviewRequest);
 
 export default router;

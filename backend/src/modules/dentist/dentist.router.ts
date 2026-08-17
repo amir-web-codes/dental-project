@@ -8,7 +8,7 @@ import * as dentistController from "./dentist.controller";
 import * as limiters from "./dentist.ratelimiter";
 
 router.get("/get-all", optionalCheckToken, validator(validations.listDentistsSchema, "query"), dentistController.listDentists);
-router.get("/admin/pending/get-all", checkToken, checkUserBan, checkRole(["admin"]), validator(paginationSchema, "query"), dentistController.getPendingProfiles)
+router.get("/admin/pending/get-all", checkToken, checkUserBan, checkRole(["ADMIN"]), validator(paginationSchema, "query"), dentistController.getPendingProfiles)
 
 router.route("/me")
     .get(checkToken, checkUserBan, checkRole(["DENTIST"]), dentistController.getMyProfile)
