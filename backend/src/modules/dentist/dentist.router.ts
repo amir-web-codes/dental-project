@@ -14,6 +14,8 @@ router.route("/me")
     .get(checkToken, checkUserBan, checkRole(["DENTIST"]), dentistController.getMyProfile)
     .patch(checkToken, checkUserBan, checkRole(["DENTIST"]), validator(validations.updateSelfDentistSchema), dentistController.updateMyProfile);
 
+router.get("/admin/:id", checkToken, checkUserBan, checkRole(["ADMIN"]), dentistController.getDentistProfileById);
+
 router.post(
     "/me/request-verification",
     checkToken,

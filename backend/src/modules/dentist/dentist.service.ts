@@ -187,14 +187,14 @@ async function ensureDentistProfile(userId: string, tx: Prisma.TransactionClient
 }
 
 async function suspendDentistProfileIfExists(userId: string, tx: Prisma.TransactionClient = prisma) {
-    await tx.dentist.updateMany({
+    return await tx.dentist.updateMany({
         where: { userId, status: { not: "SUSPENDED" } },
         data: { status: "SUSPENDED" }
     });
 }
 
 async function restoreDentistProfileIfSuspended(userId: string, tx: Prisma.TransactionClient = prisma) {
-    await tx.dentist.updateMany({
+    return await tx.dentist.updateMany({
         where: { userId, status: "SUSPENDED" },
         data: { status: "ACTIVE" }
     });

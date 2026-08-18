@@ -77,11 +77,23 @@ async function getPendingProfiles(req: Request, res: Response) {
     })
 }
 
+async function getDentistProfileById(req: Request, res: Response) {
+    const id = validateId(req)
+    const data = await dentistService.findDentistByIdOrThrow(id);
+
+    res.json({
+        success: true,
+        message: "dentist profile fetched successfully",
+        data
+    });
+}
+
 export {
     listDentists,
     getMyProfile,
     updateMyProfile,
     requestVerification,
     reviewVerification,
-    getPendingProfiles
+    getPendingProfiles,
+    getDentistProfileById
 };
