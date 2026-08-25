@@ -1,13 +1,15 @@
 import crypto from "crypto";
 import AppError from "../../errors/AppError";
 import { redisClient } from "../../configs/redis";
-import { toProfileDto } from "../user/user.service";
+import { toProfileDto, findUserByIdOrThrow } from "../user/user.service";
 import * as smsService from "./sms.service";
 import prisma from "../../configs/prisma"
 import jwt from "jsonwebtoken"
 import env from "../../utils/env"
 import bcrypt from "bcrypt"
 import * as authDto from "./auth.dto"
+import type { Prisma } from "../../generated/prisma"
+import type { refreshTokenPayload } from "../../types/auth"
 
 const OTP_EXPIRE_TIME = 120;
 const OTP_SEND_LIMIT = 5;
@@ -194,9 +196,9 @@ async function createTokens(user: authDto.UserForToken, userAgent: string, devic
     return { accessToken, refreshToken }
 }
 
-async function revokeUserToken(userId: string, deviceId: string): Promise<void> {
+async function revokeUserToken(userId: string, deviceId?: string, tx: Prisma.TransactionClient = prisma): Promise<void> {
     if (deviceId) {
-        await prisma.token.updateMany({
+        await tx.token.updateMany({
             where: {
                 userId,
                 deviceId
@@ -206,7 +208,7 @@ async function revokeUserToken(userId: string, deviceId: string): Promise<void> 
             }
         })
     } else {
-        await prisma.token.updateMany({
+        await tx.token.updateMany({
             where: {
                 userId
             },
@@ -217,9 +219,68 @@ async function revokeUserToken(userId: string, deviceId: string): Promise<void> 
     }
 }
 
+async function refreshAccessToken(token: string, userAgent: string, deviceId: string) {
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const decoded = jwt.verify(token, env("REFRESH_TOKEN_KEY")) as unknown as refreshTokenPayload
+
+            const foundUser = await findUserByIdOrThrow(decoded.id, tx)
+
+            const user = {
+                id: foundUser.id,
+                role: foundUser.role,
+                status: foundUser.status
+            }
+
+            const foundTokens = await tx.token.findMany({
+                where: {
+                    userId: decoded.id,
+                    deviceId,
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
+            })
+
+            if (!foundTokens.length || foundTokens[0].revoked) {
+                await revokeUserToken(user.id, undefined, tx)
+                throw new AppError("faked refresh token", 401)
+            }
+
+            const compareResult = await bcrypt.compare(token, foundTokens[0].hashedToken)
+
+            if (!compareResult) {
+                await revokeUserToken(user.id, undefined, tx)
+                throw new AppError("faked refresh token", 401)
+            }
+
+            await tx.token.update({
+                where: {
+                    id: foundTokens[0].id
+                },
+                data: {
+                    revoked: true
+                }
+            })
+
+            return await createTokens(user, deviceId, userAgent)
+        })
+    } catch (err) {
+        if (err instanceof jwt.TokenExpiredError) {
+            throw new AppError("token expired", 403)
+        }
+        if (err instanceof jwt.JsonWebTokenError) {
+            throw new AppError("invalid token", 403)
+        }
+
+        throw err
+    }
+}
+
 export {
     sendOtp,
     verifyOtpAndLogin,
     createUserAndToken,
-    revokeUserToken
+    revokeUserToken,
+    refreshAccessToken
 }

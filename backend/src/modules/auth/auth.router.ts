@@ -10,4 +10,6 @@ router.post("/request-otp", validator(validations.sendOtpSchema, "body"), limite
 router.post("/verify-otp", validator(validations.verifyOtpSchema, "body"), limiters.ipBasedOtpLimiter, limiters.phoneBasedOtpLimiter, authController.verifyOtp)
 router.post("/logout", checkToken, authController.logOut)
 
+router.post("/refresh-token", authController.refreshToken)
+
 export default router
