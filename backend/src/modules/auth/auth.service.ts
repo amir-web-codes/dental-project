@@ -71,7 +71,7 @@ async function sendOtp(phone: string): Promise<void> {
     }
 }
 
-async function verifyOtpAndLogin(data: { phone: string; otp: string; }): Promise<void> {
+async function verifyOtp(data: { phone: string; otp: string; }): Promise<void> {
 
     const otpKey = `otp:${data.phone}`;
     const checkKey = `otp:check:${data.phone}`;
@@ -114,35 +114,37 @@ async function verifyOtpAndLogin(data: { phone: string; otp: string; }): Promise
 }
 
 async function createUserAndToken(phone: string, userAgent: string, deviceId: string): Promise<authDto.UserAndTokens> {
-    const dbUser = await prisma.user.upsert({
-        where: {
-            phone
-        },
-        create: {
-            phone
-        },
-        update: {
-            lastLoginAt: new Date()
+    return await prisma.$transaction(async (tx) => {
+        const dbUser = await tx.user.upsert({
+            where: {
+                phone
+            },
+            create: {
+                phone
+            },
+            update: {
+                lastLoginAt: new Date()
+            }
+        })
+
+        const userToken = {
+            id: dbUser.id,
+            role: dbUser.role,
+            status: dbUser.status
         }
+
+        const { accessToken, refreshToken } = await createTokens(userToken, userAgent, deviceId, tx);
+        const user = toProfileDto(dbUser)
+
+        return { user, accessToken, refreshToken }
     })
-
-    const userToken = {
-        id: dbUser.id,
-        role: dbUser.role,
-        status: dbUser.status
-    }
-
-    const { accessToken, refreshToken } = await createTokens(userToken, userAgent, deviceId);
-    const user = toProfileDto(dbUser)
-
-    return { user, accessToken, refreshToken }
 }
 
-async function createTokens(user: authDto.UserForToken, userAgent: string, deviceId: string): Promise<authDto.Tokens> {
+async function createTokens(user: authDto.UserForToken, userAgent: string, deviceId: string, tx: Prisma.TransactionClient = prisma): Promise<authDto.Tokens> {
     const accessToken = jwt.sign({ id: user.id, role: user.role, status: user.status }, env("ACCESS_TOKEN_KEY"), { expiresIn: "5m" })
     const refreshToken = jwt.sign({ id: user.id, role: user.role, deviceId }, env("REFRESH_TOKEN_KEY"), { expiresIn: "15d" })
 
-    const tokens = await prisma.token.findMany({
+    const tokens = await tx.token.findMany({
         where: {
             userId: user.id
         },
@@ -154,22 +156,25 @@ async function createTokens(user: authDto.UserForToken, userAgent: string, devic
     if (tokens.length >= maximumTokens) {
         const firstTokenId = tokens[0].id
 
-        await prisma.token.delete({
+        await tx.token.delete({
             where: {
                 id: firstTokenId
             }
         })
     }
 
-    const deviceTokens = await prisma.token.findMany({
-        where: { userId: user.id, deviceId }
+    const deviceTokens = await tx.token.findMany({
+        where: { userId: user.id, deviceId },
+        orderBy: {
+            createdAt: "asc"
+        }
     })
 
 
     if (deviceTokens.length >= maximumDeviceTokens) {
         const firstDeviceToken = deviceTokens[0].id
 
-        await prisma.token.delete({
+        await tx.token.delete({
             where: {
                 id: firstDeviceToken
             }
@@ -178,11 +183,11 @@ async function createTokens(user: authDto.UserForToken, userAgent: string, devic
 
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 15)
 
-    await revokeUserToken(user.id, deviceId)
+    await revokeUserToken(user.id, deviceId, tx)
 
     const hashedToken = await bcrypt.hash(refreshToken, 12)
 
-    await prisma.token.create({
+    await tx.token.create({
         data: {
             hashedToken,
             userId: user.id,
@@ -222,7 +227,12 @@ async function revokeUserToken(userId: string, deviceId?: string, tx: Prisma.Tra
 async function refreshAccessToken(token: string, userAgent: string, deviceId: string) {
     try {
         return await prisma.$transaction(async (tx) => {
-            const decoded = jwt.verify(token, env("REFRESH_TOKEN_KEY")) as unknown as refreshTokenPayload
+            const decoded = jwt.verify(token, env("REFRESH_TOKEN_KEY")) as refreshTokenPayload
+
+            if (decoded.deviceId !== deviceId) {
+                await revokeUserToken(decoded.id, undefined, tx)
+                throw new AppError("faked refresh token", 401)
+            }
 
             const foundUser = await findUserByIdOrThrow(decoded.id, tx)
 
@@ -244,26 +254,34 @@ async function refreshAccessToken(token: string, userAgent: string, deviceId: st
 
             if (!foundTokens.length || foundTokens[0].revoked) {
                 await revokeUserToken(user.id, undefined, tx)
-                throw new AppError("faked refresh token", 401)
+                throw new AppError("faked refresh token, please login again", 401)
             }
 
             const compareResult = await bcrypt.compare(token, foundTokens[0].hashedToken)
+
+            console.log(foundTokens[0].hashedToken)
+            console.log(token)
 
             if (!compareResult) {
                 await revokeUserToken(user.id, undefined, tx)
                 throw new AppError("faked refresh token", 401)
             }
 
-            await tx.token.update({
+            const updateResult = await tx.token.updateMany({
                 where: {
-                    id: foundTokens[0].id
+                    id: foundTokens[0].id,
+                    revoked: false
                 },
                 data: {
                     revoked: true
                 }
             })
 
-            return await createTokens(user, deviceId, userAgent)
+            if (updateResult.count === 1) {
+                return await createTokens(user, userAgent, deviceId, tx)
+            } else {
+                throw new AppError("faked refresh token", 401)
+            }
         })
     } catch (err) {
         if (err instanceof jwt.TokenExpiredError) {
@@ -279,7 +297,7 @@ async function refreshAccessToken(token: string, userAgent: string, deviceId: st
 
 export {
     sendOtp,
-    verifyOtpAndLogin,
+    verifyOtp,
     createUserAndToken,
     revokeUserToken,
     refreshAccessToken
