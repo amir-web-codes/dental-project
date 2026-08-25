@@ -17,6 +17,13 @@ export default function checkToken(req: Request, res: Response, next: NextFuncti
         req.user = decoded;
         next();
     } catch (err) {
-        throw new AppError("invalid or expired token", 403);
+        if (err instanceof jwt.TokenExpiredError) {
+            throw new AppError("token expired", 403)
+        }
+        if (err instanceof jwt.JsonWebTokenError) {
+            throw new AppError("invalid token", 403)
+        }
+
+        throw err
     }
 }
