@@ -108,8 +108,7 @@ async function verifyOtp(data: { phone: string; otp: string; }): Promise<void> {
 
     await redisClient.del([
         otpKey,
-        checkKey,
-        countKey
+        checkKey
     ]);
 }
 
@@ -224,74 +223,90 @@ async function revokeUserToken(userId: string, deviceId?: string, tx: Prisma.Tra
     }
 }
 
-async function refreshAccessToken(token: string, userAgent: string, deviceId: string) {
+async function refreshAccessToken(token: string, userAgent: string, deviceId: string): Promise<authDto.Tokens> {
     try {
-        return await prisma.$transaction(async (tx) => {
-            const decoded = jwt.verify(token, env("REFRESH_TOKEN_KEY")) as refreshTokenPayload
+        const decoded = jwt.verify(token, env("REFRESH_TOKEN_KEY")) as refreshTokenPayload;
 
-            if (decoded.deviceId !== deviceId) {
-                await revokeUserToken(decoded.id, undefined, tx)
-                throw new AppError("faked refresh token", 401)
-            }
+        if (decoded.deviceId !== deviceId) {
+            await revokeUserToken(decoded.id);
 
-            const foundUser = await findUserByIdOrThrow(decoded.id, tx)
+            throw new AppError("faked refresh token, please login again", 401);
+        }
 
-            const user = {
+        const result = await prisma.$transaction(async (tx) => {
+            const foundUser = await findUserByIdOrThrow(decoded.id, tx);
+
+            const user: authDto.UserForToken = {
                 id: foundUser.id,
                 role: foundUser.role,
                 status: foundUser.status
-            }
+            };
 
-            const foundTokens = await tx.token.findMany({
+            const foundToken = await tx.token.findFirst({
                 where: {
                     userId: decoded.id,
-                    deviceId,
+                    deviceId
                 },
                 orderBy: {
-                    createdAt: "desc",
-                },
-            })
+                    createdAt: "desc"
+                }
+            });
 
-            if (!foundTokens.length || foundTokens[0].revoked) {
-                await revokeUserToken(user.id, undefined, tx)
-                throw new AppError("faked refresh token, please login again", 401)
+            if (!foundToken || foundToken.revoked) {
+                return { status: "COMPROMISED" as const, userId: user.id };
             }
 
-            const compareResult = await bcrypt.compare(token, foundTokens[0].hashedToken)
-
-            console.log(foundTokens[0].hashedToken)
-            console.log(token)
+            const compareResult = await bcrypt.compare(token, foundToken.hashedToken);
 
             if (!compareResult) {
-                await revokeUserToken(user.id, undefined, tx)
-                throw new AppError("faked refresh token", 401)
+                return { status: "COMPROMISED" as const, userId: user.id };
             }
 
             const updateResult = await tx.token.updateMany({
                 where: {
-                    id: foundTokens[0].id,
+                    id: foundToken.id,
                     revoked: false
                 },
                 data: {
                     revoked: true
                 }
-            })
+            });
 
-            if (updateResult.count === 1) {
-                return await createTokens(user, userAgent, deviceId, tx)
-            } else {
-                throw new AppError("faked refresh token", 401)
+            if (updateResult.count !== 1) {
+                return { status: "COMPROMISED" as const, userId: user.id };
             }
-        })
+
+            const tokens = await createTokens(
+                user,
+                userAgent,
+                deviceId,
+                tx
+            );
+
+            return {
+                status: "SUCCESS" as const,
+                tokens
+            };
+        });
+
+        if (result.status === "COMPROMISED") {
+            await revokeUserToken(result.userId);
+
+            throw new AppError("faked refresh token, please login again", 401);
+        }
+
+        return result.tokens;
+
     } catch (err) {
         if (err instanceof jwt.TokenExpiredError) {
-            throw new AppError("token expired", 403)
-        }
-        if (err instanceof jwt.JsonWebTokenError) {
-            throw new AppError("invalid token", 403)
+            throw new AppError("token expired", 401);
         }
 
-        throw err
+        if (err instanceof jwt.JsonWebTokenError) {
+            throw new AppError("invalid token", 401);
+        }
+
+        throw err;
     }
 }
 

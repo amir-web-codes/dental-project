@@ -14,7 +14,7 @@ async function sendOtp(req: Request, res: Response): Promise<void> {
 }
 
 async function verifyOtp(req: Request, res: Response): Promise<void> {
-    // await authService.verifyOtpAndLogin({
+    // await authService.verifyOtp({
     //     phone: req.body.phone,
     //     otp: req.body.otp
     // })
