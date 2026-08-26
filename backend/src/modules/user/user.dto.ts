@@ -1,5 +1,5 @@
 import PaginationDto from "../../types/pagination";
-import type { Prisma, Role, UserStatus, Gender, RequestStatus } from "../../generated/prisma";
+import type { Prisma, Role, UserStatus, Gender, RequestStatus, Request } from "../../generated/prisma";
 import type { DentistPublicDto } from "../dentist/dentist.dto"
 
 interface IncludedUser {
@@ -45,7 +45,7 @@ interface AdminUserDetailDto extends UserProfileDto {
     updatedAt: Date;
 }
 
-interface adminUserDetailWithProfiles {
+interface AdminUserDetailWithProfiles {
     userProfile: UserProfileDto | AdminUserDetailDto;
     dentistProfile?: DentistPublicDto;
 }
@@ -98,6 +98,8 @@ interface AdminBanUserDto {
     banReason?: string;
 }
 
+type RequestDto = Request
+
 export {
     UserProfileDto,
     UserUpdateProfileDto,
@@ -109,5 +111,6 @@ export {
     RequestListQueryDto,
     AdminChangeRoleDto,
     AdminBanUserDto,
-    adminUserDetailWithProfiles
+    AdminUserDetailWithProfiles,
+    RequestDto
 };

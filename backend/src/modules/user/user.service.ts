@@ -43,7 +43,7 @@ async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boo
     return toAdminDetailDto(user);
 }
 
-async function getUserDashboard(userId: string, isAdmin: boolean): Promise<userDto.adminUserDetailWithProfiles> {
+async function getUserDashboard(userId: string, isAdmin: boolean): Promise<userDto.AdminUserDetailWithProfiles> {
     return await prisma.$transaction(async (tx) => {
 
         let userProfile
@@ -130,19 +130,11 @@ async function updateUserProfile(id: string, body: userDto.UserUpdateProfileDto)
     return toProfileDto(updated);
 }
 
-async function createRequest(userId: string, body: userDto.RequestCreateDto) {
+async function createRequest(userId: string, body: userDto.RequestCreateDto): Promise<userDto.RequestDto> {
     const user = await findUserByIdOrThrow(userId);
 
     if (user.role === body.requestedRole) {
         throw new AppError("you already have this role", 409);
-    }
-
-    const existingOpen = await prisma.request.findFirst({
-        where: { userId, status: "OPEN" }
-    });
-
-    if (existingOpen) {
-        throw new AppError("you already have an open request, please wait for it to be reviewed", 409);
     }
 
     try {
@@ -152,13 +144,12 @@ async function createRequest(userId: string, body: userDto.RequestCreateDto) {
                 requestedRole: body.requestedRole,
                 reason: body.reason
             }
-        });
+        })
     } catch (err) {
-
-        if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2010") {
-            throw new AppError("you already have an open request, please wait for it to be reviewed", 409);
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+            throw new AppError("you already have an open request", 409);
         }
-        throw err;
+        throw err
     }
 }
 
@@ -325,6 +316,10 @@ async function banUser(targetUserId: string, adminId: string, body: userDto.Admi
         const target = await findUserByIdOrThrow(targetUserId, tx);
 
         assertNotAdminAndNotSelf(target.role, adminId, targetUserId, target.status);
+
+        if (target.status === "BANNED") {
+            throw new AppError("this user is already banned", 409);
+        }
 
         const newUser = await tx.user.update({
             where: { id: targetUserId },
