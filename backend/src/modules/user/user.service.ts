@@ -51,7 +51,7 @@ async function getUserDashboard(userId: string, isAdmin: boolean): Promise<userD
         if (isAdmin) {
             userProfile = await getUserDetailForAdmin(userId, { includeDeleted: true }, tx);
         } else {
-            const fetchedUser = await findUserByIdOrThrow(userId)
+            const fetchedUser = await findUserByIdOrThrow(userId, tx)
             userProfile = toProfileDto(fetchedUser)
         }
 
@@ -187,8 +187,8 @@ async function listRequests(query: userDto.RequestListQueryDto) {
     };
 }
 
-async function findRequestByIdOrThrow(id: string) {
-    const request = await prisma.request.findUnique({ where: { id } });
+async function findRequestByIdOrThrow(id: string, tx: Prisma.TransactionClient = prisma) {
+    const request = await tx.request.findUnique({ where: { id } });
     if (!request) {
         throw new AppError("request not found", 404);
     }
@@ -196,15 +196,23 @@ async function findRequestByIdOrThrow(id: string) {
 }
 
 async function reviewRequest(requestId: string, adminId: string, body: userDto.RequestReviewDto) {
-    const request = await findRequestByIdOrThrow(requestId);
+    const { updated, request } = await prisma.$transaction(async (tx) => {
+        const request = await findRequestByIdOrThrow(requestId, tx);
 
-    if (request.status !== "OPEN") {
-        throw new AppError("this request has already been reviewed", 409);
-    }
+        if (request.status !== "OPEN") {
+            throw new AppError("this request has already been reviewed", 409);
+        }
 
-    await findUserByIdOrThrow(request.userId);
+        const targetUser = await findUserByIdOrThrow(request.userId, tx);
 
-    const updated = await prisma.$transaction(async (tx) => {
+        if (targetUser.status === "DELETED") {
+            throw new AppError("cannot review a request for a deleted user", 409);
+        }
+
+        if (body.status === "APPROVED" && targetUser.role === request.requestedRole) {
+            throw new AppError("user already has the requested role", 409);
+        }
+
         const updateResult = await tx.request.updateMany({
             where: { id: requestId, status: "OPEN" },
             data: {
@@ -230,7 +238,9 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
             }
         }
 
-        return tx.request.findUniqueOrThrow({ where: { id: requestId } });
+        const updated = await tx.request.findUniqueOrThrow({ where: { id: requestId } })
+
+        return { updated, request };
     });
 
     await invalidateUserStateCache(request.userId);
