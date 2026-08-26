@@ -5,3 +5,9 @@ export interface JWTPayload {
     role: Role;
     status: UserStatus;
 }
+
+export interface refreshTokenPayload {
+    id: string;
+    role: Role;
+    deviceId: string;
+}

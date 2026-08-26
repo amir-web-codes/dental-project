@@ -1,14 +1,12 @@
 import prisma from "../../configs/prisma";
 import AppError from "../../errors/AppError";
 import logger from "../../configs/logger";
-import type { Prisma, Dentist } from "../../generated/prisma";
+import type { Prisma } from "../../generated/prisma";
 import { getPaginationParams, buildMeta } from "../../utils/pagination";
 import type * as dentistDto from "./dentist.dto";
 import PaginationDto from "../../types/pagination";
 
-type DentistWithUser = Dentist & { user: dentistDto.DentistUserSummary };
-
-function toPublicDto(dentist: DentistWithUser): dentistDto.DentistPublicDto {
+function toPublicDto(dentist: dentistDto.DentistWithUser): dentistDto.DentistPublicDto {
     return {
         id: dentist.id,
         user: dentist.user,
@@ -22,7 +20,7 @@ function toPublicDto(dentist: DentistWithUser): dentistDto.DentistPublicDto {
     };
 }
 
-function toSelfDto(dentist: DentistWithUser): dentistDto.DentistSelfDto {
+function toSelfDto(dentist: dentistDto.DentistWithUser): dentistDto.DentistSelfDto {
     return {
         ...toPublicDto(dentist),
         licenseNumber: dentist.licenseNumber,
@@ -38,8 +36,8 @@ const userSummarySelect = {
     family: true
 } as const;
 
-async function findDentistByIdOrThrow(id: string): Promise<DentistWithUser> {
-    const dentist = await prisma.dentist.findUnique({
+async function findDentistByIdOrThrow(id: string, tx: Prisma.TransactionClient = prisma): Promise<dentistDto.DentistWithUser> {
+    const dentist = await tx.dentist.findUnique({
         where: { id },
         include: { user: { select: userSummarySelect } }
     });
@@ -51,10 +49,16 @@ async function findDentistByIdOrThrow(id: string): Promise<DentistWithUser> {
     return dentist;
 }
 
-async function findDentistByUserIdOrThrow(userId: string): Promise<DentistWithUser> {
-    const dentist = await prisma.dentist.findUnique({
+async function findDentistByUserIdOrThrow(userId: string, includeUser: boolean = true, tx: Prisma.TransactionClient = prisma): Promise<dentistDto.DentistWithUser> {
+    let include: Prisma.DentistInclude = {};
+
+    if (includeUser) {
+        include = { user: { select: userSummarySelect } };
+    }
+
+    const dentist = await tx.dentist.findUnique({
         where: { userId },
-        include: { user: { select: userSummarySelect } }
+        include: include
     });
 
     if (!dentist) {
@@ -107,12 +111,12 @@ async function listDentists(query: dentistDto.DentistListQueryDto, isAdmin: bool
 }
 
 async function getMyDentistProfile(userId: string) {
-    const dentist = await findDentistByUserIdOrThrow(userId);
+    const dentist = await findDentistByUserIdOrThrow(userId, false);
     return toSelfDto(dentist);
 }
 
 async function updateMyDentistProfile(userId: string, body: dentistDto.DentistUpdateSelfDto) {
-    const dentist = await findDentistByUserIdOrThrow(userId);
+    const dentist = await findDentistByUserIdOrThrow(userId, false);
 
     if (dentist.verificationStatus === "PENDING") {
         throw new AppError("you cannot edit your profile while verification is pending", 409);
@@ -132,7 +136,7 @@ async function updateMyDentistProfile(userId: string, body: dentistDto.DentistUp
     if (body.clinicAddress !== undefined) data.clinicAddress = body.clinicAddress;
     if (body.status !== undefined) data.status = body.status;
 
-    let updated: DentistWithUser;
+    let updated: dentistDto.DentistWithUser;
     try {
         updated = await prisma.dentist.update({
             where: { userId },
@@ -150,7 +154,7 @@ async function updateMyDentistProfile(userId: string, body: dentistDto.DentistUp
 }
 
 async function requestVerification(userId: string) {
-    const dentist = await findDentistByUserIdOrThrow(userId);
+    const dentist = await findDentistByUserIdOrThrow(userId, false);
 
     if (dentist.verificationStatus === "PENDING") {
         throw new AppError("verification is already pending", 409);
@@ -174,7 +178,7 @@ async function requestVerification(userId: string) {
         throw new AppError("verification is already pending", 409);
     }
 
-    const updated = await findDentistByUserIdOrThrow(userId);
+    const updated = await findDentistByUserIdOrThrow(userId, true);
     return toSelfDto(updated);
 }
 

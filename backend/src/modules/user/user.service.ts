@@ -6,7 +6,7 @@ import { invalidateUserStateCache } from "../../utils/cache/userState.cache";
 import * as userDto from "./user.dto";
 import logger from "../../configs/logger";
 import { getPaginationParams, buildMeta } from "../../utils/pagination";
-import { ensureDentistProfile, suspendDentistProfileIfExists, restoreDentistProfileIfSuspended } from "../dentist/dentist.service";
+import * as dentistService from "../dentist/dentist.service";
 
 async function findUserByIdOrThrow(id: string, tx: Prisma.TransactionClient = prisma): Promise<User> {
 
@@ -41,6 +41,28 @@ async function getUserDetailForAdmin(id: string, options: { includeDeleted?: boo
     }
 
     return toAdminDetailDto(user);
+}
+
+async function getUserDashboard(userId: string, isAdmin: boolean): Promise<userDto.adminUserDetailWithProfiles> {
+    return await prisma.$transaction(async (tx) => {
+
+        let userProfile
+
+        if (isAdmin) {
+            userProfile = await getUserDetailForAdmin(userId, { includeDeleted: true }, tx);
+        } else {
+            const fetchedUser = await findUserByIdOrThrow(userId)
+            userProfile = toProfileDto(fetchedUser)
+        }
+
+        if (userProfile.role === "DENTIST") {
+            const fetchedDentistProfile = await dentistService.findDentistByUserIdOrThrow(userId, false, tx);
+            const dentistProfile = dentistService.toPublicDto(fetchedDentistProfile)
+            return { userProfile, dentistProfile };
+        }
+
+        return { userProfile };
+    })
 }
 
 function toProfileDto(user: User): userDto.UserProfileDto {
@@ -204,7 +226,7 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
             });
 
             if (request.requestedRole === "DENTIST") {
-                await ensureDentistProfile(request.userId, tx);
+                await dentistService.ensureDentistProfile(request.userId, tx);
             }
         }
 
@@ -254,11 +276,11 @@ async function changeUserRole(targetUserId: string, adminId: string, body: userD
 
         // if user was dentist before role change
         if (target.role === "DENTIST") {
-            await suspendDentistProfileIfExists(targetUserId, tx)
+            await dentistService.suspendDentistProfileIfExists(targetUserId, tx)
         }
 
         if (newUser.role === "DENTIST" && newUser.status === "ACTIVE") {
-            await ensureDentistProfile(targetUserId, tx);
+            await dentistService.ensureDentistProfile(targetUserId, tx);
         }
 
         return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
@@ -299,7 +321,7 @@ async function banUser(targetUserId: string, adminId: string, body: userDto.Admi
         });
 
         if (newUser.role === "DENTIST") {
-            await suspendDentistProfileIfExists(targetUserId, tx);
+            await dentistService.suspendDentistProfileIfExists(targetUserId, tx);
         }
 
 
@@ -345,7 +367,7 @@ async function unbanUser(targetUserId: string, adminId: string) {
         });
 
         if (newUser.role === "DENTIST") {
-            await restoreDentistProfileIfSuspended(targetUserId, tx);
+            await dentistService.restoreDentistProfileIfSuspended(targetUserId, tx);
         }
 
         return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
@@ -379,7 +401,7 @@ async function deleteUser(targetUserId: string, adminId: string) {
         });
 
         if (newUser.role === "DENTIST") {
-            await suspendDentistProfileIfExists(targetUserId, tx);
+            await dentistService.suspendDentistProfileIfExists(targetUserId, tx);
         }
 
         return await getUserDetailForAdmin(targetUserId, { includeDeleted: true }, tx);
@@ -406,5 +428,6 @@ export {
     changeUserRole,
     banUser,
     unbanUser,
-    deleteUser
+    deleteUser,
+    getUserDashboard
 };

@@ -10,9 +10,12 @@ router.route("/me")
     .get(checkToken, userController.getUserProfile)
     .patch(checkToken, checkUserBan, validator(validations.updateProfileSchema, "body"), userController.updateUserProfile);
 
+router.get("/me/dashboard", checkToken, userController.getUserDashboard)
+
 router.route("/admin/:id")
     .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)
     .delete(checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, userController.deleteUser);
+
 
 router.patch("/admin/:id/role", checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, validator(validations.changeRoleSchema), userController.changeUserRole);
 

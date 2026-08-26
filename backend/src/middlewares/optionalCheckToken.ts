@@ -14,7 +14,7 @@ export default function optionalCheckToken(req: Request, res: Response, next: Ne
     }
 
     try {
-        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY")) as unknown as JWTPayload;
+        const decoded = jwt.verify(token, env("ACCESS_TOKEN_KEY")) as JWTPayload;
         req.user = decoded;
         next();
     } catch (err) {

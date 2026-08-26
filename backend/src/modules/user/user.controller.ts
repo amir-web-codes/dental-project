@@ -139,6 +139,19 @@ async function deleteUser(req: Request, res: Response) {
     });
 }
 
+async function getUserDashboard(req: Request, res: Response) {
+    const id = validateId(req)
+    const user = checkRequest(req)
+
+    const data = await userService.getUserDashboard(id, user.role === "ADMIN")
+
+    res.json({
+        success: true,
+        message: "user fetched successfully",
+        // data
+    })
+}
+
 export {
     getUserProfile,
     updateUserProfile,
@@ -150,5 +163,6 @@ export {
     changeUserRole,
     banUser,
     unbanUser,
-    deleteUser
+    deleteUser,
+    getUserDashboard
 };

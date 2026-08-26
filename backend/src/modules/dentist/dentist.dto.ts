@@ -1,5 +1,5 @@
 import PaginationDto from "../../types/pagination";
-import type { DentalSpecialty, DentistVerificationStatus, DentistStatus } from "../../generated/prisma";
+import type { DentalSpecialty, DentistVerificationStatus, DentistStatus, Dentist } from "../../generated/prisma";
 
 interface DentistUserSummary {
     id: string;
@@ -9,7 +9,7 @@ interface DentistUserSummary {
 
 interface DentistPublicDto {
     id: string;
-    user: DentistUserSummary;
+    user?: DentistUserSummary;
     bio: string | null;
     specialty: DentalSpecialty | null;
     yearsOfExperience: number | null;
@@ -49,11 +49,14 @@ interface AdminReviewDentistVerificationDto {
     rejectionReason?: string;
 }
 
+type DentistWithUser = Dentist & { user?: DentistUserSummary };
+
 export {
     DentistUserSummary,
     DentistPublicDto,
     DentistSelfDto,
     DentistUpdateSelfDto,
     DentistListQueryDto,
-    AdminReviewDentistVerificationDto
+    AdminReviewDentistVerificationDto,
+    DentistWithUser
 };
