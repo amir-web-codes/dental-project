@@ -11,6 +11,7 @@ router.route("/me")
     .patch(checkToken, checkUserBan, validator(validations.updateProfileSchema, "body"), userController.updateUserProfile);
 
 router.get("/me/dashboard", checkToken, userController.getUserDashboard)
+router.get("/admin/:id/dashboard", checkToken, checkUserBan, checkRole(["ADMIN"]), limiters.adminSensitiveActionLimiter, userController.getUserDashboardForAdmin)
 
 router.route("/admin/:id")
     .get(checkToken, checkUserBan, checkRole(["ADMIN"]), validator(validations.includeDeletedSchema, "query"), userController.getUserDetailForAdmin)

@@ -140,15 +140,26 @@ async function deleteUser(req: Request, res: Response) {
 }
 
 async function getUserDashboard(req: Request, res: Response) {
-    const id = validateId(req)
     const user = checkRequest(req)
 
-    const data = await userService.getUserDashboard(id, user.role === "ADMIN")
+    const data = await userService.getUserDashboard(user.id, false)
 
     res.json({
         success: true,
         message: "user fetched successfully",
-        // data
+        data
+    })
+}
+
+async function getUserDashboardForAdmin(req: Request, res: Response) {
+    const id = validateId(req)
+
+    const data = await userService.getUserDashboard(id, false)
+
+    res.json({
+        success: true,
+        message: "user fetched successfully",
+        data
     })
 }
 
@@ -164,5 +175,6 @@ export {
     banUser,
     unbanUser,
     deleteUser,
-    getUserDashboard
+    getUserDashboard,
+    getUserDashboardForAdmin
 };

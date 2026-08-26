@@ -213,6 +213,10 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
             throw new AppError("user already has the requested role", 409);
         }
 
+        if (adminId === request.id) {
+            throw new AppError("you cannot perform this action on your own account", 403);
+        }
+
         const updateResult = await tx.request.updateMany({
             where: { id: requestId, status: "OPEN" },
             data: {
@@ -235,6 +239,11 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
 
             if (request.requestedRole === "DENTIST") {
                 await dentistService.ensureDentistProfile(request.userId, tx);
+            }
+
+            // if user was dentist before role change
+            if (targetUser.role === "DENTIST") {
+                await dentistService.suspendDentistProfileIfExists(targetUser.id, tx)
             }
         }
 
