@@ -204,7 +204,7 @@ async function reviewRequest(requestId: string, adminId: string, body: userDto.R
             throw new AppError("user already has the requested role", 409);
         }
 
-        if (adminId === request.id) {
+        if (adminId === targetUser.id) {
             throw new AppError("you cannot perform this action on your own account", 403);
         }
 
